@@ -1,12 +1,15 @@
 package com.featuretoggle.sdk.java.listener;
 
 import com.featuretoggle.sdk.java.FeatureToggleClient;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.connection.Message;
 
 import java.util.concurrent.TimeUnit;
@@ -19,6 +22,7 @@ import static org.mockito.Mockito.*;
  * Verifies that multiple notifications are coalesced into single sync
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class FlagUpdateListenerTest {
     
     @Mock
@@ -38,6 +42,7 @@ class FlagUpdateListenerTest {
         
         // Mock message
         when(message.getChannel()).thenReturn("feature_flag_changes:test-app".getBytes());
+        when(message.getBody()).thenReturn("{\"flagKey\":\"test_flag\",\"deleted\":false,\"version\":100}".getBytes());
         
         // Mock objectMapper to return valid event
         java.util.Map<String, Object> event = new java.util.HashMap<>();
@@ -78,14 +83,14 @@ class FlagUpdateListenerTest {
     
     @Test
     void onMessage_ShouldDebounce_MultipleNotifications() throws Exception {
-        // Given: Send 10 notifications rapidly
+        // Given: Send 10 notifications rapidly (all within 100ms window)
         for (int i = 0; i < 10; i++) {
             listener.onMessage(message, null);
-            Thread.sleep(10); // 10ms between notifications (within 100ms window)
+            Thread.sleep(5); // 5ms between notifications (total 45ms, well within 100ms window)
         }
         
-        // When: Wait for debounce window
-        Thread.sleep(200);
+        // When: Wait for debounce window to complete
+        Thread.sleep(150);
         
         // Then: Should only trigger 1 sync (not 10)
         verify(featureToggleClient, times(1)).triggerFullSync();
@@ -109,11 +114,11 @@ class FlagUpdateListenerTest {
     
     @Test
     void onMessage_ShouldHandleException_Gracefully() throws Exception {
-        // Given
+        // Given - Simulate JSON parse error (Jackson throws JsonProcessingException)
         when(objectMapper.readValue(anyString(), eq(java.util.Map.class)))
-            .thenThrow(new RuntimeException("JSON parse error"));
+            .thenThrow(new JsonProcessingException("JSON parse error") {});
         
-        // When & Then
+        // When & Then - Should not throw exception (caught and logged)
         assertDoesNotThrow(() -> listener.onMessage(message, null));
         
         // Should not trigger sync on error

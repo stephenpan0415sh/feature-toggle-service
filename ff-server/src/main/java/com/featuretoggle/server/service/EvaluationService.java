@@ -1,4 +1,4 @@
-package com.featuretoggle.server.service;
+                                                                                                                                                                                                                                                                package com.featuretoggle.server.service;
 
 import com.featuretoggle.common.model.EvaluationDetail;
 import com.featuretoggle.common.model.FeatureFlag;
@@ -83,8 +83,25 @@ public class EvaluationService {
 
             // Evaluate
             EvaluationDetail detail = ruleEvaluator.evaluate(flag, userContext);
-            success = detail.isSuccess();
-            return detail;
+            
+            // Enrich with releaseVersion from FeatureFlag
+            EvaluationDetail enrichedDetail = new EvaluationDetail(
+                detail.flagKey(),
+                detail.enabled(),
+                detail.value(),
+                detail.reason(),
+                detail.matchedRuleId(),
+                detail.traceId(),
+                detail.environment(),
+                detail.region(),
+                flag.getReleaseVersion(),  // Get from FeatureFlag
+                detail.evaluatedAt(),
+                detail.userContextSnapshot(),
+                detail.matchedConditions()
+            );
+            
+            success = enrichedDetail.isSuccess();
+            return enrichedDetail;
             
         } catch (Exception e) {
             log.error("Error evaluating flag: {}", flagKey, e);

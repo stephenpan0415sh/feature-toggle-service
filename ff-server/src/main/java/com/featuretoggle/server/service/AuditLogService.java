@@ -28,6 +28,7 @@ public class AuditLogService {
      * 
      * @param event The evaluation event to log
      */
+    // TODO: Implement Kafka integration - inject KafkaTemplate and send to "feature-flag-evaluations" topic
     public void logEvaluation(EvaluationEvent event) {
         try {
             // Convert to JSON for better readability
@@ -53,6 +54,7 @@ public class AuditLogService {
      * 
      * @param event The configuration change event
      */
+    // TODO: Implement Kafka integration - inject KafkaTemplate and send to "feature-flag-changes" topic
     public void logConfigChange(ConfigChangeEvent event) {
         try {
             // Convert to JSON for better readability
@@ -76,6 +78,7 @@ public class AuditLogService {
      * 
      * @param events List of evaluation events
      */
+    // TODO: Implement Kafka batch sending using kafkaTemplate.send() for better performance
     public void logEvaluationBatch(java.util.List<EvaluationEvent> events) {
         if (events == null || events.isEmpty()) {
             return;

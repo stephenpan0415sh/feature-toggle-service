@@ -5,6 +5,7 @@ import com.featuretoggle.common.model.FeatureFlag;
 import com.featuretoggle.common.model.UserContext;
 import com.featuretoggle.sdk.core.evaluator.RuleEvaluator;
 import com.featuretoggle.sdk.java.config.SdkProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.client.RestTemplate;
 
@@ -23,6 +24,7 @@ public class FeatureToggleClient {
     
     private final SdkProperties properties;
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final RuleEvaluator ruleEvaluator = new RuleEvaluator();
     
     /**
@@ -89,7 +91,7 @@ public class FeatureToggleClient {
     
     /**
      * Register a flag from annotation configuration.
-                                                                                                                                                                            * Registers locally first, then posts to Dashboard for persistence.
+     * Registers locally first, then posts to Dashboard for persistence.
      */
     public void registerFlag(FeatureFlag flag) {
         String flagKey = flag.getFlagKey();
@@ -126,8 +128,7 @@ public class FeatureToggleClient {
                 "flag", flag,
                 "skipPublish", true  // Skip Redis Pub/Sub since we already cached locally
             );
-            
-            @SuppressWarnings("unchecked")
+
             Map<String, Object> response = restTemplate.postForObject(url, request, Map.class);
             
             if (response != null && Boolean.TRUE.equals(response.get("success"))) {
@@ -149,7 +150,19 @@ public class FeatureToggleClient {
     }
     
     /**
-     * Sync a single flag from server (called when Redis message received)
+     * Manually sync a specific flag from server.
+     * 
+     * <p><b>Usage Scenarios:</b>
+     * <ul>
+     *   <li>Non-Spring applications requiring manual flag synchronization</li>
+     *   <li>Spring Beans needing on-demand sync for specific flags</li>
+     *   <li>Debugging or testing individual flag updates</li>
+     * </ul>
+     * 
+     * <p><b>Note:</b> For automatic synchronization, Spring Boot applications should rely on 
+     * Pub/Sub notifications which trigger {@link #triggerFullSync()} automatically.
+     * 
+     * @param flagKey the flag key to sync
      */
     public void syncFlagFromServer(String flagKey) {
         try {
@@ -167,8 +180,10 @@ public class FeatureToggleClient {
                 Map<String, Object> data = (Map<String, Object>) response.get("data");
                 
                 if (data != null) {
-                    // TODO: Convert Map to FeatureFlag and cache it
-                    log.debug("Synced flag from server: {}", flagKey);
+                    // Convert Map to FeatureFlag and cache it
+                    FeatureFlag flag = objectMapper.convertValue(data, FeatureFlag.class);
+                    flagCache.put(flagKey, flag);
+                    log.debug("Synced and cached flag: {}", flagKey);
                 }
             }
         } catch (Exception e) {
@@ -256,29 +271,18 @@ public class FeatureToggleClient {
                         java.util.List<Map<String, Object>> flags = 
                             (java.util.List<Map<String, Object>>) data.get("flags");
                         
-                        // Full sync (lastKnownVersion was 0) - replace entire cache
-                        if (lastKnownVersion == 0) {
-                            // Clear existing cache and replace with new data
-                            flagCache.clear();
-                            
-                            if (flags != null && !flags.isEmpty()) {
-                                for (Map<String, Object> flagMap : flags) {
-                                    // TODO: Convert Map to FeatureFlag
-                                    String flagKey = (String) flagMap.get("flagKey");
-                                    log.debug("Cached flag: {}", flagKey);
-                                }
-                            }
-                            
-                            log.info("Full sync completed: {} flags cached", flagCache.size());
-                        } else {
-                            // Incremental sync - only update changed flags
-                            if (flags != null && !flags.isEmpty()) {
-                                for (Map<String, Object> flagMap : flags) {
-                                    // TODO: Convert Map to FeatureFlag
-                                    log.debug("Synced flag: {}", flagMap.get("flagKey"));
-                                }
+                        // Clear existing cache and replace with new data
+                        flagCache.clear();
+                        
+                        if (flags != null && !flags.isEmpty()) {
+                            for (Map<String, Object> flagMap : flags) {
+                                FeatureFlag flag = objectMapper.convertValue(flagMap, FeatureFlag.class);
+                                flagCache.put(flag.getFlagKey(), flag);
+                                log.debug("Cached flag: {}", flag.getFlagKey());
                             }
                         }
+                        
+                        log.info("Full sync completed: {} flags cached", flagCache.size());
                         
                         lastKnownVersion = globalVersion;
                         log.info("Synced flags, new version: {}", globalVersion);

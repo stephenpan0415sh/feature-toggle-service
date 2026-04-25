@@ -3,7 +3,6 @@ package com.featuretoggle.server.config;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,20 +13,19 @@ import java.util.concurrent.atomic.AtomicLong;
  * Exposes Prometheus metrics for monitoring and alerting.
  */
 @Component
-@RequiredArgsConstructor
 public class MetricsCollector {
 
     private final MeterRegistry meterRegistry;
     
     // Counters
-    private final Counter evaluationTotalCounter;
-    private final Counter evaluationSuccessCounter;
-    private final Counter evaluationErrorCounter;
-    private final Counter cacheHitCounter;
-    private final Counter cacheMissCounter;
+    private Counter evaluationTotalCounter;
+    private Counter evaluationSuccessCounter;
+    private Counter evaluationErrorCounter;
+    private Counter cacheHitCounter;
+    private Counter cacheMissCounter;
     
     // Timers
-    private final Timer evaluationTimer;
+    private Timer evaluationTimer;
     
     // Gauges for cache stats
     private final ConcurrentHashMap<String, AtomicLong> cachedFlagsGauge = new ConcurrentHashMap<>();

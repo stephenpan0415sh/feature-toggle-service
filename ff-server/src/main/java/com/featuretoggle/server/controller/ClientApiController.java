@@ -65,7 +65,7 @@ public class ClientApiController {
             long latency = System.currentTimeMillis() - startTime;
             
             // Send audit log asynchronously
-            sendAuditLog(appKey, environment != null ? environment : "prod", flagKey, userId, region, detail, latency, null);
+            sendAuditLog(appKey, environment != null ? environment : "prod", flagKey, userId, region, detail, latency, null, detail.releaseVersion());
             
             return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -159,7 +159,6 @@ public class ClientApiController {
                     "data", Map.of(
                         "globalVersion", currentGlobalVersion,
                         "flags", java.util.List.of(), // No changes
-                        "deletedFlags", java.util.List.of(),
                         "hasChanges", false
                     )
                 ));
@@ -173,7 +172,6 @@ public class ClientApiController {
                 "data", Map.of(
                     "globalVersion", currentGlobalVersion,
                     "flags", flags,
-                    "deletedFlags", java.util.List.of(), // TODO: Track deleted flags
                     "hasChanges", !flags.isEmpty()
                 )
             ));
@@ -270,7 +268,7 @@ public class ClientApiController {
      */
     private void sendAuditLog(String appKey, String environment, String flagKey, 
                               String userId, String region, EvaluationDetail detail,
-                              long latencyMs, String errorMessage) {
+                              long latencyMs, String errorMessage, String releaseVersion) {
         try {
             EvaluationEvent event = EvaluationEvent.builder()
                 .eventId(java.util.UUID.randomUUID().toString())
@@ -285,7 +283,7 @@ public class ClientApiController {
                 .traceId(detail.traceId())
                 .userId(userId)
                 .region(region)
-                .releaseVersion(null) // TODO: Get from FeatureFlag if available
+                .releaseVersion(releaseVersion)
                 .userContext(detail.userContextSnapshot())
                 .matchedConditions(detail.matchedConditions())
                 .sdkVersion("server-api") // SDK version would come from client headers

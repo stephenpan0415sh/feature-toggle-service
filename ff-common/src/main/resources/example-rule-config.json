@@ -1,0 +1,111 @@
+{
+  "flagKey": "new_checkout_flow",
+  "name": "New Checkout Flow",
+  "environment": "prod",
+  "status": 1,
+  "defaultValue": "v1",
+  "version": 12,
+  "minSdkVersion": "1.0.0",
+  "experimentGroup": "checkout_experiment",
+  "rules": [
+    {
+      "id": "rule_kill",
+      "priority": 0,
+      "type": "KILL_SWITCH",
+      "conditions": [],
+      "actionValue": "false",
+      "percentage": null,
+      "hashAttribute": null,
+      "description": "Emergency kill switch - disables feature for all users"
+    },
+    {
+      "id": "rule_whitelist",
+      "priority": 1,
+      "type": "WHITELIST",
+      "conditions": [
+        {
+          "attribute": "uid",
+          "operator": "in",
+          "values": [1001, 1002, 1003, 2001]
+        }
+      ],
+      "actionValue": "v2",
+      "percentage": null,
+      "hashAttribute": null,
+      "description": "Internal testing team and VIP users"
+    },
+    {
+      "id": "rule_blacklist",
+      "priority": 2,
+      "type": "BLACKLIST",
+      "conditions": [
+        {
+          "attribute": "uid",
+          "operator": "in",
+          "values": [9999, 8888]
+        }
+      ],
+      "actionValue": "v1",
+      "percentage": null,
+      "hashAttribute": null,
+      "description": "Users who reported issues with new checkout"
+    },
+    {
+      "id": "rule_targeting_beijing_vip",
+      "priority": 3,
+      "type": "TARGETING",
+      "conditions": [
+        {
+          "attribute": "region",
+          "operator": "in",
+          "values": ["cn-beijing", "cn-shanghai"]
+        },
+        {
+          "attribute": "vipLevel",
+          "operator": "gte",
+          "values": [2]
+        },
+        {
+          "attribute": "deviceType",
+          "operator": "eq",
+          "values": ["ios"]
+        }
+      ],
+      "actionValue": "v2",
+      "percentage": null,
+      "hashAttribute": null,
+      "description": "VIP users in Beijing/Shanghai using iOS devices"
+    },
+    {
+      "id": "rule_targeting_email_domain",
+      "priority": 4,
+      "type": "TARGETING",
+      "conditions": [
+        {
+          "attribute": "email",
+          "operator": "contains",
+          "values": ["@company.com"]
+        },
+        {
+          "attribute": "isEmployee",
+          "operator": "eq",
+          "values": [true]
+        }
+      ],
+      "actionValue": "v2",
+      "percentage": null,
+      "hashAttribute": null,
+      "description": "Company employees for internal testing"
+    },
+    {
+      "id": "rule_percentage_50",
+      "priority": 5,
+      "type": "PERCENTAGE_ROLLOUT",
+      "conditions": [],
+      "actionValue": "v2",
+      "percentage": 50,
+      "hashAttribute": "uid",
+      "description": "50% rollout based on user ID hash"
+    }
+  ]
+}

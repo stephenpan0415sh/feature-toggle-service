@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>EvaluationDetail.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Java SDK</a> &gt; <a href="../index.html" class="el_bundle">ff-common</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.common.model</a> &gt; <span class="el_source">EvaluationDetail.java</span></div><h1>EvaluationDetail.java</h1><pre class="source lang-java linenums">package com.featuretoggle.common.model;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Evaluation detail model providing explainability for feature flag decisions.
+ * Answers: Is it enabled? For whom? In which region? Why?
+ * 
+ * Example JSON structure:
+ * {
+ *   &quot;flagKey&quot;: &quot;new_checkout_flow&quot;,
+ *   &quot;enabled&quot;: true,
+ *   &quot;value&quot;: &quot;v2&quot;,
+ *   &quot;reason&quot;: &quot;MATCHED_RULE&quot;,
+ *   &quot;matchedRuleId&quot;: &quot;rule_001&quot;,
+ *   &quot;traceId&quot;: &quot;trace_abc123&quot;,
+ *   &quot;environment&quot;: &quot;prod&quot;,
+ *   &quot;region&quot;: &quot;cn-beijing&quot;,
+ *   &quot;evaluatedAt&quot;: 1713849600000,
+ *   &quot;userContextSnapshot&quot;: {
+ *     &quot;uid&quot;: 123,
+ *     &quot;vip_level&quot;: 2
+ *   },
+ *   &quot;matchedConditions&quot;: [
+ *     &quot;uid in [100, 200, 300]&quot;,
+ *     &quot;vip_level &gt;= 2&quot;
+ *   ]
+ * }
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record EvaluationDetail(
+    /**
+     * Flag key that was evaluated
+     */
+    String flagKey,
+
+    /**
+     * Whether the flag is enabled
+     */
+    boolean enabled,
+
+    /**
+     * The value returned (can be string, number, boolean as string)
+     */
+    String value,
+
+    /**
+     * Reason for the evaluation result
+     */
+    EvaluationReason reason,
+
+    /**
+     * ID of the matched rule (if applicable)
+     */
+    String matchedRuleId,
+
+    /**
+     * Trace ID for debugging and correlation
+     */
+    String traceId,
+
+    // Context information
+
+    /**
+     * Environment where evaluation occurred (prod/staging/dev)
+     */
+    String environment,
+
+    /**
+     * Geographic region (e.g., cn-east, us-west)
+     */
+    String region,
+
+    /**
+     * Release version associated with this flag evaluation
+     * Example: &quot;v1.2.3&quot;, &quot;release-2024-04&quot;
+     */
+    String releaseVersion,
+
+    /**
+     * Timestamp when evaluation occurred (milliseconds since epoch)
+     */
+    Long evaluatedAt,
+
+    // User context snapshot
+
+    /**
+     * Snapshot of user attributes that were used in evaluation
+     */
+    Map&lt;String, Object&gt; userContextSnapshot,
+
+    /**
+     * List of human-readable condition descriptions that matched
+     * Example: [&quot;uid in [100,200]&quot;, &quot;vip_level &gt;= 2&quot;]
+     */
+    List&lt;String&gt; matchedConditions
+) implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Evaluation reasons explaining why a flag was evaluated to a certain value
+     */
+<span class="fc" id="L111">    public enum EvaluationReason {</span>
+        /**
+         * No rules matched, returned default value
+         */
+<span class="fc" id="L115">        DEFAULT,</span>
+
+        /**
+         * Matched a targeting rule
+         */
+<span class="fc" id="L120">        MATCHED_RULE,</span>
+
+        /**
+         * Kill switch disabled the flag
+         */
+<span class="fc" id="L125">        KILL_SWITCH,</span>
+
+        /**
+         * User is in whitelist
+         */
+<span class="fc" id="L130">        WHITELIST,</span>
+
+        /**
+         * User is in blacklist
+         */
+<span class="fc" id="L135">        BLACKLIST,</span>
+
+        /**
+         * User matched percentage rollout criteria
+         */
+<span class="fc" id="L140">        PERCENTAGE_ROLLOUT,</span>
+
+        /**
+         * Error occurred during evaluation, returned default value
+         */
+<span class="fc" id="L145">        ERROR,</span>
+
+        /**
+         * SDK version is incompatible, returned default value
+         */
+<span class="fc" id="L150">        SDK_INCOMPATIBLE,</span>
+
+        /**
+         * Flag not found
+         */
+<span class="fc" id="L155">        FLAG_NOT_FOUND</span>
+    }
+
+    /**
+     * Compact constructor to set default evaluatedAt timestamp
+     */
+<span class="fc" id="L161">    public EvaluationDetail {</span>
+<span class="pc bpc" id="L162" title="1 of 2 branches missed.">        if (evaluatedAt == null) {</span>
+<span class="nc" id="L163">            evaluatedAt = System.currentTimeMillis();</span>
+        }
+<span class="fc" id="L165">    }</span>
+
+    /**
+     * Create a default evaluation detail (flag not found or error)
+     */
+    public static EvaluationDetail createDefault(String flagKey, String defaultValue, EvaluationReason reason) {
+<span class="nc" id="L171">        return new EvaluationDetail(</span>
+                flagKey,
+<span class="nc" id="L173">                Boolean.parseBoolean(defaultValue),</span>
+                defaultValue,
+                reason,
+                null,  // matchedRuleId
+                null,  // traceId
+                null,  // environment
+                null,  // region
+                null,  // releaseVersion
+<span class="nc" id="L181">                System.currentTimeMillis(),</span>
+                null,  // userContextSnapshot
+                null   // matchedConditions
+        );
+    }
+
+    /**
+     * Check if evaluation was successful (not an error)
+     */
+    public boolean isSuccess() {
+<span class="nc bnc" id="L191" title="All 6 branches missed.">        return reason != EvaluationReason.ERROR &amp;&amp; </span>
+               reason != EvaluationReason.FLAG_NOT_FOUND &amp;&amp;
+               reason != EvaluationReason.SDK_INCOMPATIBLE;
+    }
+
+    /**
+     * Generate a summary string for logging
+     */
+    public String toSummaryString() {
+<span class="nc" id="L200">        return String.format(&quot;Flag[%s] -&gt; enabled=%s, value=%s, reason=%s, ruleId=%s&quot;,</span>
+<span class="nc" id="L201">                flagKey, enabled, value, reason, matchedRuleId);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

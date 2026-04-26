@@ -8,16 +8,23 @@ import com.featuretoggle.server.service.AuditLogService;
 import com.featuretoggle.server.service.EvaluationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 /**
- * Client API Controller for SDK flag evaluation
+ * Client-facing API for SDK consumption.
+ * This controller provides endpoints for flag evaluation and configuration retrieval.
+ * Note: Each environment has its own deployment, so environment parameter is not needed in API calls.
  */
 @Slf4j
 @RestController
@@ -25,29 +32,45 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Client API", description = "APIs for SDK flag evaluation and configuration retrieval")
 public class ClientApiController {
-
+    
     private final EvaluationService evaluationService;
     private final AuditLogService auditLogService;
-
+    
+    @Value("${FEATURE_TOGGLE_ENVIRONMENT:prod}")
+    private String currentEnvironment;
+    
     /**
      * Single flag evaluation
-     * GET /api/client/flags/{key}?userId=123&region=cn-east
+     * GET /api/client/evaluate/{flagKey}?appKey=xxx&userId=xxx&region=xxx
      */
-    @GetMapping("/flags/{flagKey}")
+    @GetMapping("/evaluate/{flagKey}")
     @Operation(
         summary = "Evaluate a single feature flag",
-        description = "Evaluates a specific feature flag for a given user context and returns the evaluation result with explainability details"
+        description = "Evaluates a feature flag for a specific user context. Returns the flag value along with evaluation details including matched rules and conditions.",
+        tags = {"Client API"}
     )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Flag evaluated successfully",
+            content = @Content(mediaType = "application/json",
+                examples = @ExampleObject(
+                    name = "Success Response",
+                    value = "{\n  \"success\": true,\n  \"data\": {\n    \"flagKey\": \"enable_new_checkout\",\n    \"enabled\": true,\n    \"value\": \"true\",\n    \"reason\": \"RULE_MATCH\",\n    \"matchedRuleId\": \"rule_1\",\n    \"traceId\": \"trace-abc-123\",\n    \"releaseVersion\": \"v1.2.0\"\n  }\n}"
+                ))),
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters",
+            content = @Content(mediaType = "application/json",
+                examples = @ExampleObject(
+                    name = "Error Response",
+                    value = "{\n  \"success\": false,\n  \"error\": \"App not found: invalid-app\"\n}"
+                )))
+    })
     public ResponseEntity<Map<String, Object>> evaluateFlag(
             @PathVariable String flagKey,
             @Parameter(description = "Application key", required = true, example = "ecommerce-web")
-            @RequestParam String appKey,
+            @RequestParam("appKey") String appKey,
             @Parameter(description = "User ID", required = true, example = "user_123")
-            @RequestParam String userId,
+            @RequestParam("userId") String userId,
             @Parameter(description = "User region", example = "cn-east")
-            @RequestParam(required = false) String region,
-            @Parameter(description = "Environment (default: prod)", example = "prod")
-            @RequestParam(required = false) String environment) {
+            @RequestParam(value = "region", required = false) String region) {
         
         try {
             // Build user context
@@ -61,11 +84,11 @@ public class ClientApiController {
             // Evaluate
             long startTime = System.currentTimeMillis();
             EvaluationDetail detail = evaluationService.evaluateFlag(
-                appKey, flagKey, userContext, environment != null ? environment : "prod");
+                appKey, flagKey, userContext, currentEnvironment);
             long latency = System.currentTimeMillis() - startTime;
             
             // Send audit log asynchronously
-            sendAuditLog(appKey, environment != null ? environment : "prod", flagKey, userId, region, detail, latency, null, detail.releaseVersion());
+            sendAuditLog(appKey, flagKey, userId, region, detail, latency, null, detail.releaseVersion());
             
             return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -88,8 +111,23 @@ public class ClientApiController {
     @PostMapping("/evaluate")
     @Operation(
         summary = "Batch evaluate multiple feature flags",
-        description = "Evaluates multiple feature flags in a single request for better performance. Recommended for SDK initialization or page loads requiring multiple flags."
+        description = "Evaluates multiple feature flags in a single request for better performance. Recommended for SDK initialization or page loads requiring multiple flags.",
+        tags = {"Client API"}
     )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Flags evaluated successfully",
+            content = @Content(mediaType = "application/json",
+                examples = @ExampleObject(
+                    name = "Batch Success",
+                    value = "{\n  \"success\": true,\n  \"data\": {\n    \"enable_checkout\": {\n      \"flagKey\": \"enable_checkout\",\n      \"enabled\": true,\n      \"value\": \"true\",\n      \"reason\": \"DEFAULT\"\n    },\n    \"show_promo\": {\n      \"flagKey\": \"show_promo\",\n      \"enabled\": false,\n      \"value\": \"false\",\n      \"reason\": \"DEFAULT\"\n    }\n  }\n}"
+                ))),
+        @ApiResponse(responseCode = "400", description = "Missing required fields",
+            content = @Content(mediaType = "application/json",
+                examples = @ExampleObject(
+                    name = "Validation Error",
+                    value = "{\n  \"success\": false,\n  \"error\": \"Missing required fields: appKey, userId\"\n}"
+                )))
+    })
     public ResponseEntity<Map<String, Object>> batchEvaluate(
             @RequestBody BatchEvaluationRequest request) {
         
@@ -102,15 +140,22 @@ public class ClientApiController {
                 ));
             }
             
+            if (request.flagKeys() == null || request.flagKeys().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "flagKeys cannot be empty"
+                ));
+            }
+            
             // Build user context
             UserContext userContext = new UserContext(
                 request.userId(), 
                 request.attributes()
             );
             
-            // Batch evaluate (environment defaults to prod, can be added to request if needed)
+            // Batch evaluate
             Map<String, EvaluationDetail> results = evaluationService.batchEvaluate(
-                request.appKey(), request.flagKeys(), userContext, "prod");
+                request.appKey(), request.flagKeys(), userContext, currentEnvironment);
             
             return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -138,17 +183,13 @@ public class ClientApiController {
     )
     public ResponseEntity<Map<String, Object>> getConfigs(
             @Parameter(description = "Application key", required = true, example = "ecommerce-web")
-            @RequestParam String appKey,
+            @RequestParam("appKey") String appKey,
             @Parameter(description = "Last known global version for incremental sync", example = "123")
-            @RequestParam(required = false) Long lastKnownVersion,
-            @Parameter(description = "Environment (default: prod)", example = "prod")
-            @RequestParam(required = false) String environment) {
+            @RequestParam(value = "lastKnownVersion", required = false) Long lastKnownVersion) {
         
         try {
-            String env = environment != null ? environment : "prod";
-            
             // Get global version
-            Long currentGlobalVersion = evaluationService.getFlagVersions(appKey, env).values().stream()
+            Long currentGlobalVersion = evaluationService.getFlagVersions(appKey, currentEnvironment).values().stream()
                 .max(Long::compareTo)
                 .orElse(0L);
             
@@ -165,7 +206,7 @@ public class ClientApiController {
             }
             
             // Get changed flags (or all flags if no lastKnownVersion)
-            var flags = evaluationService.getAllFlagsIncremental(appKey, env, lastKnownVersion);
+            var flags = evaluationService.getAllFlagsIncremental(appKey, currentEnvironment, lastKnownVersion);
             
             return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -196,15 +237,11 @@ public class ClientApiController {
     )
     public ResponseEntity<Map<String, Object>> getFlagVersions(
             @Parameter(description = "Application key", required = true, example = "ecommerce-web")
-            @RequestParam String appKey,
-            @Parameter(description = "Environment (default: prod)", example = "prod")
-            @RequestParam(required = false) String environment) {
+            @RequestParam("appKey") String appKey) {
         
         try {
-            String env = environment != null ? environment : "prod";
-            
             // Get all flag versions
-            Map<String, Long> versions = evaluationService.getFlagVersions(appKey, env);
+            Map<String, Long> versions = evaluationService.getFlagVersions(appKey, currentEnvironment);
             
             // Calculate global version (max of all flag versions)
             Long globalVersion = versions.values().stream()
@@ -230,7 +267,7 @@ public class ClientApiController {
 
     /**
      * Get cache statistics for monitoring
-     * GET /api/client/cache-stats?appKey=xxx&environment=prod
+     * GET /api/client/cache-stats?appKey=xxx
      */
     @GetMapping("/cache-stats")
     @Operation(
@@ -239,15 +276,11 @@ public class ClientApiController {
     )
     public ResponseEntity<Map<String, Object>> getCacheStats(
             @Parameter(description = "Application key", required = true, example = "ecommerce-web")
-            @RequestParam String appKey,
-            @Parameter(description = "Environment (default: prod)", example = "prod")
-            @RequestParam(required = false) String environment) {
+            @RequestParam("appKey") String appKey) {
         
         try {
-            String env = environment != null ? environment : "prod";
-            
             // Get cache stats
-            Map<String, Object> stats = evaluationService.getCacheStats(appKey, env);
+            Map<String, Object> stats = evaluationService.getCacheStats(appKey, currentEnvironment);
             
             return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -266,7 +299,7 @@ public class ClientApiController {
     /**
      * Send evaluation event to audit log (async, non-blocking)
      */
-    private void sendAuditLog(String appKey, String environment, String flagKey, 
+    private void sendAuditLog(String appKey, String flagKey, 
                               String userId, String region, EvaluationDetail detail,
                               long latencyMs, String errorMessage, String releaseVersion) {
         try {
@@ -274,7 +307,7 @@ public class ClientApiController {
                 .eventId(java.util.UUID.randomUUID().toString())
                 .timestamp(System.currentTimeMillis())
                 .appKey(appKey)
-                .environment(environment)
+                .environment(currentEnvironment)
                 .flagKey(flagKey)
                 .enabled(detail.enabled())
                 .value(detail.value())

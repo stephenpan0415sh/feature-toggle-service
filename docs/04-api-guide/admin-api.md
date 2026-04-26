@@ -5,13 +5,12 @@ Base URL: `/api/admin`
 ## 1. Create Flag
 **POST** `/flags`
 
-Creates a new feature flag for a specific application and environment.
+Creates a new feature flag for the current environment.
 
 ### Request Parameters
 | Parameter | Type | Location | Required | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `appKey` | String | Query | Yes | Application identifier |
-| `environment` | String | Query | Yes | Target environment (e.g., `prod`, `dev`) |
 
 ### Request Body
 ```json
@@ -41,15 +40,14 @@ Creates a new feature flag for a specific application and environment.
 Updates an existing feature flag configuration.
 
 ### Path Parameters
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `flagKey` | String | Yes | Unique key of the flag |
+| Parameter | Type | Location | Required | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `flagKey` | String | Path | Yes | Flag key to update |
 
 ### Request Parameters
 | Parameter | Type | Location | Required | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `appKey` | String | Query | Yes | Application identifier |
-| `environment` | String | Query | Yes | Target environment |
 
 ### Response
 ```json
@@ -68,48 +66,37 @@ Updates an existing feature flag configuration.
 Permanently deletes a feature flag (Hard Delete).
 
 ### Path Parameters
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `flagKey` | String | Yes | Unique key of the flag |
+| Parameter | Type | Location | Required | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `flagKey` | String | Path | Yes | Flag key to delete |
 
 ### Request Parameters
 | Parameter | Type | Location | Required | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `appKey` | String | Query | Yes | Application identifier |
-| `environment` | String | Query | Yes | Target environment |
 
 ---
 
-## 4. Get Flag Details
-**GET** `/flags/{flagKey}`
-
-Retrieves the full configuration of a specific flag.
-
-### Path Parameters
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `flagKey` | String | Yes | Unique key of the flag |
-
-### Request Parameters
-| Parameter | Type | Location | Required | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `appKey` | String | Query | Yes | Application identifier |
-| `environment` | String | Query | Yes | Target environment |
-
----
-
-## 5. List Flags
+## 4. Get Flag(s)
 **GET** `/flags`
 
-Lists all feature flags for an application in a specific environment.
+Retrieves feature flag configuration. Returns a single flag if `flagKey` is provided, otherwise returns all flags for the application.
 
 ### Request Parameters
 | Parameter | Type | Location | Required | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `appKey` | String | Query | Yes | Application identifier |
-| `environment` | String | Query | Yes | Target environment |
+| `flagKey` | String | Query | No | Flag key (optional - if not provided, returns all flags) |
 
-### Response
+### Response (Single Flag)
+```json
+{
+  "success": true,
+  "data": { ...FeatureFlagObject }
+}
+```
+
+### Response (All Flags)
 ```json
 {
   "success": true,

@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>Condition.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Java SDK</a> &gt; <a href="../index.html" class="el_bundle">ff-common</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.common.model</a> &gt; <span class="el_source">Condition.java</span></div><h1>Condition.java</h1><pre class="source lang-java linenums">package com.featuretoggle.common.model;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.io.Serializable;
+import java.util.List;
+
+/**
+ * Condition model for rule evaluation.
+ * Represents a single condition like &quot;uid in [1, 100]&quot; or &quot;region equals cn-beijing&quot;.
+ * 
+ * Example JSON structures:
+ * 
+ * 1. IN operator (user ID in list):
+ * {
+ *   &quot;attribute&quot;: &quot;uid&quot;,
+ *   &quot;operator&quot;: &quot;in&quot;,
+ *   &quot;values&quot;: [1001, 1002, 1003]
+ * }
+ * 
+ * 2. EQ operator (exact match):
+ * {
+ *   &quot;attribute&quot;: &quot;region&quot;,
+ *   &quot;operator&quot;: &quot;eq&quot;,
+ *   &quot;values&quot;: [&quot;cn-beijing&quot;]
+ * }
+ * 
+ * 3. GTE operator (greater than or equal):
+ * {
+ *   &quot;attribute&quot;: &quot;vip_level&quot;,
+ *   &quot;operator&quot;: &quot;gte&quot;,
+ *   &quot;values&quot;: [2]
+ * }
+ * 
+ * 4. CONTAINS operator (string contains):
+ * {
+ *   &quot;attribute&quot;: &quot;email&quot;,
+ *   &quot;operator&quot;: &quot;contains&quot;,
+ *   &quot;values&quot;: [&quot;@company.com&quot;]
+ * }
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record Condition(
+    /**
+     * User attribute name to evaluate (e.g., &quot;uid&quot;, &quot;region&quot;, &quot;vip_level&quot;)
+     */
+    String attribute,
+
+    /**
+     * Operator to use for comparison
+     */
+    Operator operator,
+
+    /**
+     * Values to compare against (can be numbers, strings, or booleans)
+     * For unary operators (IS_TRUE, IS_FALSE), this can be empty
+     */
+    List&lt;Object&gt; values
+) implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Supported operators for condition evaluation
+     */
+<span class="fc" id="L69">    public enum Operator {</span>
+        /**
+         * Equals - exact match
+         */
+<span class="fc" id="L73">        EQ,</span>
+
+        /**
+         * Not equals
+         */
+<span class="fc" id="L78">        NEQ,</span>
+
+        /**
+         * In - value is in the list
+         */
+<span class="fc" id="L83">        IN,</span>
+
+        /**
+         * Not in - value is not in the list
+         */
+<span class="fc" id="L88">        NOT_IN,</span>
+
+        /**
+         * Greater than
+         */
+<span class="fc" id="L93">        GT,</span>
+
+        /**
+         * Greater than or equal
+         */
+<span class="fc" id="L98">        GTE,</span>
+
+        /**
+         * Less than
+         */
+<span class="fc" id="L103">        LT,</span>
+
+        /**
+         * Less than or equal
+         */
+<span class="fc" id="L108">        LTE,</span>
+
+        /**
+         * String contains substring
+         */
+<span class="fc" id="L113">        CONTAINS,</span>
+
+        /**
+         * String starts with prefix
+         */
+<span class="fc" id="L118">        STARTS_WITH,</span>
+
+        /**
+         * String ends with suffix
+         */
+<span class="fc" id="L123">        ENDS_WITH,</span>
+
+        /**
+         * Regular expression match
+         */
+<span class="fc" id="L128">        REGEX,</span>
+
+        /**
+         * Boolean is true
+         */
+<span class="fc" id="L133">        IS_TRUE,</span>
+
+        /**
+         * Boolean is false
+         */
+<span class="fc" id="L138">        IS_FALSE</span>
+    }
+
+    /**
+     * Compact constructor for validation
+     */
+<span class="fc" id="L144">    public Condition {</span>
+<span class="pc bpc" id="L145" title="2 of 4 branches missed.">        if (attribute == null || attribute.isEmpty()) {</span>
+<span class="nc" id="L146">            throw new IllegalArgumentException(&quot;Condition attribute cannot be empty&quot;);</span>
+        }
+
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">        if (operator == null) {</span>
+<span class="nc" id="L150">            throw new IllegalArgumentException(&quot;Condition operator cannot be null&quot;);</span>
+        }
+
+        // Unary operators don't require values
+<span class="fc bfc" id="L154" title="All 4 branches covered.">        if (operator != Operator.IS_TRUE &amp;&amp; operator != Operator.IS_FALSE) {</span>
+<span class="pc bpc" id="L155" title="2 of 4 branches missed.">            if (values == null || values.isEmpty()) {</span>
+<span class="nc" id="L156">                throw new IllegalArgumentException(&quot;Condition values cannot be empty for operator: &quot; + operator);</span>
+            }
+        }
+<span class="fc" id="L159">    }</span>
+
+    /**
+     * Generate human-readable description for explainability
+     * Example: &quot;uid in [1001, 1002, 1003]&quot; or &quot;region equals cn-beijing&quot;
+     */
+    public String toReadableString() {
+<span class="fc bfc" id="L166" title="All 2 branches covered.">        if (operator == Operator.IS_TRUE) {</span>
+<span class="fc" id="L167">            return attribute + &quot; is true&quot;;</span>
+        }
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        if (operator == Operator.IS_FALSE) {</span>
+<span class="fc" id="L170">            return attribute + &quot; is false&quot;;</span>
+        }
+
+<span class="fc" id="L173">        String operatorStr = formatOperator(operator);</span>
+<span class="fc" id="L174">        String valuesStr = formatValues(values);</span>
+
+<span class="fc" id="L176">        return attribute + &quot; &quot; + operatorStr + &quot; &quot; + valuesStr;</span>
+    }
+
+    /**
+     * Format operator for human-readable output
+     */
+    private String formatOperator(Operator op) {
+<span class="pc bpc" id="L183" title="1 of 13 branches missed.">        return switch (op) {</span>
+<span class="fc" id="L184">            case EQ -&gt; &quot;equals&quot;;</span>
+<span class="fc" id="L185">            case NEQ -&gt; &quot;not equals&quot;;</span>
+<span class="fc" id="L186">            case IN -&gt; &quot;in&quot;;</span>
+<span class="fc" id="L187">            case NOT_IN -&gt; &quot;not in&quot;;</span>
+<span class="fc" id="L188">            case GT -&gt; &quot;greater than&quot;;</span>
+<span class="fc" id="L189">            case GTE -&gt; &quot;greater than or equal&quot;;</span>
+<span class="fc" id="L190">            case LT -&gt; &quot;less than&quot;;</span>
+<span class="fc" id="L191">            case LTE -&gt; &quot;less than or equal&quot;;</span>
+<span class="fc" id="L192">            case CONTAINS -&gt; &quot;contains&quot;;</span>
+<span class="fc" id="L193">            case STARTS_WITH -&gt; &quot;starts with&quot;;</span>
+<span class="fc" id="L194">            case ENDS_WITH -&gt; &quot;ends with&quot;;</span>
+<span class="fc" id="L195">            case REGEX -&gt; &quot;matches regex&quot;;</span>
+<span class="nc" id="L196">            default -&gt; op.name().toLowerCase();</span>
+        };
+    }
+
+    /**
+     * Format values for human-readable output
+     */
+    private String formatValues(List&lt;Object&gt; values) {
+<span class="pc bpc" id="L204" title="2 of 4 branches missed.">        if (values == null || values.isEmpty()) {</span>
+<span class="nc" id="L205">            return &quot;&quot;;</span>
+        }
+
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        if (values.size() == 1) {</span>
+<span class="fc" id="L209">            return values.get(0).toString();</span>
+        }
+
+        // Multiple values - format as array
+<span class="fc" id="L213">        return &quot;[&quot; + String.join(&quot;, &quot;, </span>
+<span class="fc" id="L214">            values.stream().map(Object::toString).toArray(String[]::new)) + &quot;]&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -254,6 +254,254 @@ class RuleEvaluatorTest {
         assertEquals(EvaluationDetail.EvaluationReason.DEFAULT, normalResult.reason());
     }
 
+    // Test: EQ operator with numbers
+    @Test
+    void shouldMatchEqualOperatorWithNumbers() {
+        Condition condition = new Condition("age", Condition.Operator.EQ, List.of(25));
+        Rule rule = Rule.builder()
+            .id("rule_eq")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("age", 25));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+        assertEquals(EvaluationDetail.EvaluationReason.MATCHED_RULE, result.reason());
+    }
+
+    // Test: NEQ operator
+    @Test
+    void shouldMatchNotEqualOperator() {
+        Condition condition = new Condition("status", Condition.Operator.NEQ, List.of("inactive"));
+        Rule rule = Rule.builder()
+            .id("rule_neq")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("status", "active"));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: NOT_IN operator
+    @Test
+    void shouldMatchNotInOperator() {
+        Condition condition = new Condition("country", Condition.Operator.NOT_IN, List.of("CN", "RU"));
+        Rule rule = Rule.builder()
+            .id("rule_not_in")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("country", "US"));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: GT operator with numbers
+    @Test
+    void shouldMatchGreaterThanOperator() {
+        Condition condition = new Condition("score", Condition.Operator.GT, List.of(80));
+        Rule rule = Rule.builder()
+            .id("rule_gt")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("score", 95));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: GTE operator
+    @Test
+    void shouldMatchGreaterThanOrEqualOperator() {
+        Condition condition = new Condition("score", Condition.Operator.GTE, List.of(80));
+        Rule rule = Rule.builder()
+            .id("rule_gte")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("score", 80));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: LT operator
+    @Test
+    void shouldMatchLessThanOperator() {
+        Condition condition = new Condition("age", Condition.Operator.LT, List.of(18));
+        Rule rule = Rule.builder()
+            .id("rule_lt")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("age", 16));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: LTE operator
+    @Test
+    void shouldMatchLessThanOrEqualOperator() {
+        Condition condition = new Condition("age", Condition.Operator.LTE, List.of(18));
+        Rule rule = Rule.builder()
+            .id("rule_lte")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("age", 18));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: STARTS_WITH operator
+    @Test
+    void shouldMatchStartsWithOperator() {
+        Condition condition = new Condition("email", Condition.Operator.STARTS_WITH, List.of("admin@"));
+        Rule rule = Rule.builder()
+            .id("rule_starts")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("email", "admin@company.com"));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: ENDS_WITH operator
+    @Test
+    void shouldMatchEndsWithOperator() {
+        Condition condition = new Condition("domain", Condition.Operator.ENDS_WITH, List.of(".edu"));
+        Rule rule = Rule.builder()
+            .id("rule_ends")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("domain", "university.edu"));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: REGEX operator
+    @Test
+    void shouldMatchRegexOperator() {
+        Condition condition = new Condition("phone", Condition.Operator.REGEX, List.of("^1[3-9]\\d{9}$"));
+        Rule rule = Rule.builder()
+            .id("rule_regex")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("phone", "13812345678"));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: IS_TRUE operator
+    @Test
+    void shouldMatchIsTrueOperator() {
+        Condition condition = new Condition("isPremium", Condition.Operator.IS_TRUE, List.of());
+        Rule rule = Rule.builder()
+            .id("rule_is_true")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("isPremium", true));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: IS_FALSE operator
+    @Test
+    void shouldMatchIsFalseOperator() {
+        Condition condition = new Condition("isBanned", Condition.Operator.IS_FALSE, List.of());
+        Rule rule = Rule.builder()
+            .id("rule_is_false")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("isBanned", false));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
+    // Test: String comparison with GT/LT operators
+    @Test
+    void shouldCompareStringsWithGreaterThanOperator() {
+        Condition condition = new Condition("name", Condition.Operator.GT, List.of("Alice"));
+        Rule rule = Rule.builder()
+            .id("rule_string_gt")
+            .priority(1)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(condition))
+            .actionValue("true")
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
+        UserContext user = createUser("123", Map.of("name", "Bob"));
+
+        EvaluationDetail result = evaluator.evaluate(flag, user);
+        assertTrue(result.enabled());
+    }
+
     // Helper methods
 
     private FeatureFlag createFlag(String flagKey, int status, String defaultValue, List<Rule> rules) {

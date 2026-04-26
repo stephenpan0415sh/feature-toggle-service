@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>ConfigChangeEvent.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Java SDK</a> &gt; <a href="../index.html" class="el_bundle">ff-common</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.common.dto</a> &gt; <span class="el_source">ConfigChangeEvent.java</span></div><h1>ConfigChangeEvent.java</h1><pre class="source lang-java linenums">package com.featuretoggle.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+import java.util.Map;
+
+/**
+ * Configuration change event for audit logging.
+ * Captures all changes to feature flags for compliance and debugging.
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+<span class="nc bnc" id="L19" title="All 122 branches missed.">@Data</span>
+<span class="nc" id="L20">@Builder</span>
+<span class="nc" id="L21">@NoArgsConstructor</span>
+<span class="nc" id="L22">@AllArgsConstructor</span>
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ConfigChangeEvent implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Event ID for tracing
+     */
+<span class="nc" id="L31">    private String eventId;</span>
+
+    /**
+     * Timestamp when change occurred (milliseconds since epoch)
+     */
+<span class="nc" id="L36">    private Long timestamp;</span>
+
+    /**
+     * Application key
+     */
+<span class="nc" id="L41">    private String appKey;</span>
+
+    /**
+     * Environment (prod/staging/dev)
+     */
+<span class="nc" id="L46">    private String environment;</span>
+
+    /**
+     * Flag key that was changed
+     */
+<span class="nc" id="L51">    private String flagKey;</span>
+
+    /**
+     * Type of change: CREATE, UPDATE, DELETE, PUBLISH
+     */
+<span class="nc" id="L56">    private ChangeType changeType;</span>
+
+    /**
+     * User who made the change
+     */
+<span class="nc" id="L61">    private String changedBy;</span>
+
+    /**
+     * Previous state (before change)
+     */
+<span class="nc" id="L66">    private Map&lt;String, Object&gt; previousState;</span>
+
+    /**
+     * New state (after change)
+     */
+<span class="nc" id="L71">    private Map&lt;String, Object&gt; newState;</span>
+
+    /**
+     * List of changed fields
+     * Example: [&quot;status&quot;, &quot;rules&quot;, &quot;defaultValue&quot;]
+     */
+<span class="nc" id="L77">    private java.util.List&lt;String&gt; changedFields;</span>
+
+    /**
+     * Reason for the change (optional)
+     */
+<span class="nc" id="L82">    private String changeReason;</span>
+
+    /**
+     * IP address of the user who made the change
+     */
+<span class="nc" id="L87">    private String ipAddress;</span>
+
+    /**
+     * User agent of the client
+     */
+<span class="nc" id="L92">    private String userAgent;</span>
+
+    /**
+     * Whether this change was rolled back
+     */
+<span class="nc" id="L97">    private boolean rolledBack;</span>
+
+    /**
+     * Rollback reason (if applicable)
+     */
+<span class="nc" id="L102">    private String rollbackReason;</span>
+
+    /**
+     * Change type enum
+     */
+<span class="nc" id="L107">    public enum ChangeType {</span>
+<span class="nc" id="L108">        CREATE,</span>
+<span class="nc" id="L109">        UPDATE,</span>
+<span class="nc" id="L110">        DELETE,</span>
+<span class="nc" id="L111">        PUBLISH,</span>
+<span class="nc" id="L112">        ROLLBACK</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

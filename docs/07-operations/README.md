@@ -69,7 +69,7 @@ If a single instance cannot handle the load:
 Key `application.yml` settings:
 ```yaml
 feature-toggle:
-  pull-interval: 30000  # SDK sync interval (ms)
+  pull-interval: 300000  # Heartbeat sync interval (ms, default: 5 min). Set to 0 for Pub/Sub only mode.
   cache-ttl: 3600       # L2 cache TTL (seconds)
   
 management:

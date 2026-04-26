@@ -59,9 +59,16 @@ public class ClientRegisterController {
             log.info("Received flag registration: appKey={}, flagKey={}, environment={}", 
                 appKey, flagKey, environment);
             
-            // Check if flag already exists
+            // Get or create app
             App app = appRepository.findByAppKey(appKey)
-                .orElseThrow(() -> new RuntimeException("App not found: " + appKey));
+                .orElseGet(() -> {
+                    log.info("App not found, creating new app: {}", appKey);
+                    App newApp = App.builder()
+                        .appKey(appKey)
+                        .name(appKey)
+                        .build();
+                    return appRepository.save(newApp);
+                });
             
             java.util.Optional<FeatureFlagEntity> existingFlag = flagRepository
                 .findByAppIdAndEnvironmentAndFlagKey(app.getId(), environment, flagKey);
@@ -97,6 +104,11 @@ public class ClientRegisterController {
             if (rules != null && !rules.isEmpty()) {
                 int priority = 1;
                 for (Map<String, Object> ruleMap : rules) {
+                    // Set default type to TARGETING if not specified
+                    if (!ruleMap.containsKey("type")) {
+                        ruleMap.put("type", "TARGETING");
+                    }
+                    
                     FlagRuleEntity ruleEntity = FlagRuleEntity.builder()
                         .flagId(flagEntity.getId())
                         .priority(priority++)

@@ -175,6 +175,10 @@ public class AdminService {
         // Delete flag
         flagRepository.delete(flagEntity);
         
+        // Invalidate cache
+        flagCacheService.invalidateCache(appKey, flagKey, environment);
+        flagCacheService.invalidateAppCache(appKey, environment);
+        
         // Publish deletion to Redis (optimized - no extra DB query)
         evaluationService.publishDelete(appKey, flagKey, environment, version);
         

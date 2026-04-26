@@ -105,6 +105,7 @@
                     <configuration>
                         <source>${java.version}</source>
                         <target>${java.version}</target>
+                        <parameters>true</parameters>
                     </configuration>
                 </plugin>
 
@@ -132,6 +133,16 @@
                             </goals>
                             <configuration>
                                 <outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <id>report-aggregate</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>report-aggregate</goal>
+                            </goals>
+                            <configuration>
+                                <outputDirectory>${project.basedir}/docs/08-testing/test-coverage-report</outputDirectory>
                             </configuration>
                         </execution>
                     </executions>

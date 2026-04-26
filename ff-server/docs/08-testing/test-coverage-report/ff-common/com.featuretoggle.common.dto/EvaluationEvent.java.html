@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>EvaluationEvent.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Server</a> &gt; <a href="../index.html" class="el_bundle">ff-common</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.common.dto</a> &gt; <span class="el_source">EvaluationEvent.java</span></div><h1>EvaluationEvent.java</h1><pre class="source lang-java linenums">package com.featuretoggle.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Evaluation event for audit logging and observability.
+ * Captures complete context of a feature flag evaluation for debugging and analysis.
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+<span class="nc bnc" id="L20" title="All 150 branches missed.">@Data</span>
+<span class="pc" id="L21">@Builder</span>
+<span class="nc" id="L22">@NoArgsConstructor</span>
+<span class="fc" id="L23">@AllArgsConstructor</span>
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class EvaluationEvent implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Event ID for tracing
+     */
+<span class="fc" id="L32">    private String eventId;</span>
+
+    /**
+     * Timestamp when evaluation occurred (milliseconds since epoch)
+     */
+<span class="fc" id="L37">    private Long timestamp;</span>
+
+    /**
+     * Application key
+     */
+<span class="fc" id="L42">    private String appKey;</span>
+
+    /**
+     * Environment (prod/staging/dev)
+     */
+<span class="fc" id="L47">    private String environment;</span>
+
+    /**
+     * Flag key that was evaluated
+     */
+<span class="fc" id="L52">    private String flagKey;</span>
+
+    /**
+     * Evaluation result
+     */
+<span class="fc" id="L57">    private boolean enabled;</span>
+
+    /**
+     * Returned value
+     */
+<span class="fc" id="L62">    private String value;</span>
+
+    /**
+     * Reason for the evaluation result
+     */
+<span class="fc" id="L67">    private String reason;</span>
+
+    /**
+     * Matched rule ID (if applicable)
+     */
+<span class="fc" id="L72">    private String matchedRuleId;</span>
+
+    /**
+     * Trace ID for correlation with other logs
+     */
+<span class="fc" id="L77">    private String traceId;</span>
+
+    /**
+     * User ID who triggered the evaluation
+     */
+<span class="fc" id="L82">    private String userId;</span>
+
+    /**
+     * Geographic region (e.g., cn-east, us-west)
+     */
+<span class="fc" id="L87">    private String region;</span>
+
+    /**
+     * Release version associated with this evaluation
+     */
+<span class="fc" id="L92">    private String releaseVersion;</span>
+
+    /**
+     * User context snapshot (attributes used in evaluation)
+     */
+<span class="fc" id="L97">    private Map&lt;String, Object&gt; userContext;</span>
+
+    /**
+     * List of matched condition descriptions
+     */
+<span class="fc" id="L102">    private List&lt;String&gt; matchedConditions;</span>
+
+    /**
+     * SDK version that performed the evaluation
+     */
+<span class="fc" id="L107">    private String sdkVersion;</span>
+
+    /**
+     * Evaluation latency in milliseconds
+     */
+<span class="fc" id="L112">    private Long evaluationLatencyMs;</span>
+
+    /**
+     * Whether the evaluation was successful
+     */
+<span class="fc" id="L117">    private boolean success;</span>
+
+    /**
+     * Error message if evaluation failed
+     */
+<span class="fc" id="L122">    private String errorMessage;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

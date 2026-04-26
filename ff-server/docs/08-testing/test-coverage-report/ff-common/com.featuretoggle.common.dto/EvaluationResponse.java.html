@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>EvaluationResponse.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Server</a> &gt; <a href="../index.html" class="el_bundle">ff-common</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.common.dto</a> &gt; <span class="el_source">EvaluationResponse.java</span></div><h1>EvaluationResponse.java</h1><pre class="source lang-java linenums">package com.featuretoggle.common.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.featuretoggle.common.model.EvaluationDetail;
+
+import java.io.Serializable;
+import java.util.Map;
+
+/**
+ * Response DTO for flag evaluation.
+ * 
+ * Example JSON:
+ * {
+ *   &quot;success&quot;: true,
+ *   &quot;data&quot;: {
+ *     &quot;new_checkout&quot;: {
+ *       &quot;flagKey&quot;: &quot;new_checkout&quot;,
+ *       &quot;enabled&quot;: true,
+ *       &quot;value&quot;: &quot;v2&quot;,
+ *       &quot;reason&quot;: &quot;MATCHED_RULE&quot;,
+ *       &quot;matchedRuleId&quot;: &quot;rule_001&quot;,
+ *       &quot;environment&quot;: &quot;prod&quot;,
+ *       &quot;region&quot;: &quot;cn-east&quot;,
+ *       &quot;evaluatedAt&quot;: 1713849600000,
+ *       &quot;traceId&quot;: &quot;trace_abc123&quot;
+ *     },
+ *     &quot;free_shipping&quot;: {
+ *       &quot;flagKey&quot;: &quot;free_shipping&quot;,
+ *       &quot;enabled&quot;: false,
+ *       &quot;value&quot;: null,
+ *       &quot;reason&quot;: &quot;DEFAULT&quot;,
+ *       &quot;environment&quot;: &quot;prod&quot;,
+ *       &quot;traceId&quot;: &quot;trace_abc123&quot;
+ *     }
+ *   },
+ *   &quot;error&quot;: null
+ * }
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+<span class="nc" id="L43">public record EvaluationResponse(</span>
+    /**
+     * Whether the request was successful
+     */
+    boolean success,
+
+    /**
+     * Map of flag key to evaluation detail
+     */
+    Map&lt;String, EvaluationDetail&gt; data,
+
+    /**
+     * Error message if success is false
+     */
+    String error
+) implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Create a successful response
+     */
+    public static EvaluationResponse success(Map&lt;String, EvaluationDetail&gt; data) {
+<span class="nc" id="L66">        return new EvaluationResponse(true, data, null);</span>
+    }
+
+    /**
+     * Create an error response
+     */
+    public static EvaluationResponse error(String errorMessage) {
+<span class="nc" id="L73">        return new EvaluationResponse(false, null, errorMessage);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

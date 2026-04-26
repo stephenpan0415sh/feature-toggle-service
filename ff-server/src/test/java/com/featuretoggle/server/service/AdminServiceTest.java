@@ -293,4 +293,20 @@ class AdminServiceTest {
         assertEquals(2, result.size());
         verify(flagRepository, never()).findByAppIdAndEnvironment(any(), any());
     }
+    
+    @Test
+    void shouldGetFlagFromCache_whenNullCached() {
+        // Given
+        when(flagCacheService.getFromCache("test-app", "missing-flag", "prod"))
+            .thenReturn(null);
+        when(flagCacheService.hasFlagInCache("test-app", "missing-flag", "prod"))
+            .thenReturn(true);
+        
+        // When
+        FeatureFlag result = adminService.getFlag("test-app", "prod", "missing-flag");
+        
+        // Then
+        assertNull(result);
+        verify(flagRepository, never()).findByAppIdAndEnvironmentAndFlagKey(any(), any(), any());
+    }
 }

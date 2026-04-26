@@ -56,7 +56,7 @@ The SDK automatically interacts with several internal endpoints of `ff-server`:
 ### 4.1. Flag Registration
 - **Endpoint**: `POST /api/client/register`
 - **Trigger**: Called at startup for every flag defined via `@FeatureFlag` annotation.
-- **Logic**: Checks if the flag exists on the server. If not, it creates it. If it does, the server's configuration takes priority (Dashboard > Code).
+- **Logic**: Checks if the flag exists on the server. If not, it creates it. If it does, the server's configuration takes priority (Dashboard > Code). The SDK caches the flag locally immediately to ensure availability.
 
 ### 4.2. Configuration Sync
 - **Endpoint**: `GET /api/client/configs?lastKnownVersion=X`
@@ -64,7 +64,7 @@ The SDK automatically interacts with several internal endpoints of `ff-server`:
 - **Logic**: Compares versions and pulls only changed flags to save bandwidth.
 
 ### 4.3. Flag Evaluation (Fallback)
-- **Endpoint**: `GET /api/client/flags/{key}`
+- **Endpoint**: `GET /api/client/evaluate/{key}`
 - **Trigger**: Only if the flag is missing from the L1 cache (e.g., first request or cache miss).
 - **Logic**: Fetches the flag from the server, evaluates it, and caches it locally.
 

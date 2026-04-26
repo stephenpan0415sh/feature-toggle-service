@@ -7,7 +7,7 @@ These APIs are primarily used by the **SDK** for evaluation, synchronization, an
 ---
 
 ## 1. Evaluate Flag
-**GET** `/flags/{flagKey}`
+**GET** `/evaluate/{flagKey}`
 
 Evaluates a specific feature flag for a given user context. Returns detailed explainability info.
 
@@ -22,7 +22,6 @@ Evaluates a specific feature flag for a given user context. Returns detailed exp
 | `appKey` | String | Query | Yes | Application identifier |
 | `userId` | String | Query | Yes | Current user identifier |
 | `region` | String | Query | No | User's region (e.g., `cn-east`) |
-| `environment` | String | Query | No | Target environment (Default: `prod`) |
 
 ### Response
 ```json
@@ -81,7 +80,6 @@ Retrieves feature flag configurations for SDK initialization. Supports **increme
 | :--- | :--- | :--- | :--- | :--- |
 | `appKey` | String | Query | Yes | Application identifier |
 | `lastKnownVersion` | Long | Query | No | Version for incremental sync |
-| `environment` | String | Query | No | Target environment (Default: `prod`) |
 
 ### Response
 ```json
@@ -90,11 +88,12 @@ Retrieves feature flag configurations for SDK initialization. Supports **increme
   "data": {
     "globalVersion": 105,
     "flags": [ ...ChangedFlags ],
-    "deletedFlags": [],
     "hasChanges": true
   }
 }
 ```
+
+**Note**: Deleted flags are handled by full cache replacement on the SDK side. The SDK clears its local cache and reloads all flags when a deletion is detected via Pub/Sub or heartbeat sync.
 
 ---
 
@@ -107,7 +106,6 @@ Returns current global and individual flag versions. Used for lightweight pollin
 | Parameter | Type | Location | Required | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `appKey` | String | Query | Yes | Application identifier |
-| `environment` | String | Query | No | Target environment (Default: `prod`) |
 
 ### Response
 ```json
@@ -134,7 +132,6 @@ Returns cache statistics for monitoring and debugging.
 | Parameter | Type | Location | Required | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `appKey` | String | Query | Yes | Application identifier |
-| `environment` | String | Query | No | Target environment (Default: `prod`) |
 
 ### Response
 ```json
@@ -158,7 +155,6 @@ Returns cache statistics for monitoring and debugging.
 ```json
 {
   "appKey": "ecommerce-web",
-  "environment": "prod",
   "flag": {
     "flagKey": "enable_dark_mode",
     "name": "Enable Dark Mode",

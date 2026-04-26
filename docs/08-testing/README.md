@@ -4,28 +4,24 @@ This document outlines the testing approach for the Feature Toggle Service, cove
 
 ## 1. Test Coverage Overview
 
-| Module | Tests | Coverage | Status |
-| :--- | :--- | :--- | :--- |
-| **ff-sdk-core** | 2 test classes | 95%+ | ✅ Complete |
-| **ff-sdk-java** | 3 test classes | 90%+ | ✅ Complete |
-| **ff-server** | 4 test classes | 85%+ | ✅ Complete |
+| Module | Tests | Instruction Coverage | Branch Coverage | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **ff-sdk-core** | 2 test classes | 87% | 54% | ✅ Complete |
+| **ff-sdk-java** | 4 test classes | 64% | 39% | ✅ Core Logic Covered |
+| **ff-server** | 6 test classes | 66% | 42% | ✅ Core Logic Covered |
 
-### Test Files
+### Coverage Analysis & Limitations
 
-#### ff-sdk-core
-- `PercentageCalculatorTest.java`: Hash algorithm and percentage rollout
-- `RuleEvaluatorTest.java`: Rule matching logic
+The coverage percentages reflect a pragmatic approach to testing under tight deadlines:
 
-#### ff-sdk-java
-- `FeatureFlagAnnotationScannerTest.java`: Annotation scanning
-- `FeatureFlagBeanScannerTest.java`: Bean registration
-- `FlagUpdateListenerTest.java`: Pub/Sub message handling
+- **Core Logic Focus**: We prioritized the evaluation engine (`ff-sdk-core`), service layer logic, and flag synchronization mechanisms. These are the most critical parts of the system.
+- **Excluded Components**: Configuration classes, Entity/DTO data structures, and example/demo code were excluded from coverage targets as they contain minimal business logic.
+- **SDK Integration**: The `ff-sdk-java` module focuses on AOP interception and client communication. While configuration scanning has lower coverage, the core `FeatureToggleClient` and `FeatureToggleAspect` are thoroughly tested.
+- **Server API**: The `ff-server` module achieves high coverage in its Service layer (69%), ensuring that flag CRUD and evaluation rules work correctly. Controller tests cover the primary API paths.
 
-#### ff-server
-- `AdminServiceTest.java`: Flag CRUD operations
-- `AuditLogServiceTest.java`: Audit event logging
-- `EvaluationServiceTest.java`: Flag evaluation logic
-- `FlagCacheServiceTest.java`: Redis cache operations
+### How to View Reports
+
+Detailed HTML reports are generated in each module's `target/site/jacoco/` directory after running `mvn verify`.
 
 ## 2. Unit Testing
 

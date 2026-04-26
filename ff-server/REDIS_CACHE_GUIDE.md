@@ -110,10 +110,7 @@ public class EvaluationService {
     // Batch evaluation
     public Map<String, EvaluationDetail> batchEvaluate(String appKey, List<String> flagKeys, UserContext userContext, String environment)
     
-    // Full sync - get all flags
-    public List<FeatureFlag> getAllFlags(String appKey, String environment)
-    
-    // Incremental sync - get only changed flags
+    // Incremental sync - get changed flags (or all flags if lastKnownVersion is null)
     public List<FeatureFlag> getAllFlagsIncremental(String appKey, String environment, Long lastKnownVersion)
     
     // Get flag versions for client comparison
@@ -222,7 +219,6 @@ GET /api/client/configs?appKey=xxx&lastKnownVersion=123&environment=prod
         "rules": [...]
       }
     ],
-    "deletedFlags": [],
     "hasChanges": true
   }
 }
@@ -235,11 +231,12 @@ GET /api/client/configs?appKey=xxx&lastKnownVersion=123&environment=prod
   "data": {
     "globalVersion": 456,
     "flags": [],
-    "deletedFlags": [],
     "hasChanges": false
   }
 }
 ```
+
+**Note**: Deleted flags are not included in the response. The SDK handles deletions by clearing its local cache and performing a full reload when notified via Pub/Sub or heartbeat sync.
 
 ### 4. Version Check (Lightweight Polling)
 ```http
@@ -300,13 +297,10 @@ GET /api/client/cache-stats?appKey=xxx&environment=prod
    }
    ```
 
-2. **Periodic Polling** (every 30s-5min):
-   - Call `/api/client/versions` to check `globalVersion`
-   - If version changed, call `/api/client/configs?lastKnownVersion={currentVersion}`
+2. **Periodic Heartbeat** (every 5 minutes, configurable):
+   - Call `/api/client/configs?lastKnownVersion={currentVersion}`
    - Only download changed flags (minimal bandwidth)
-
-3. **Full Comparison** (every 5 minutes):
-   - Compare all flag versions locally vs server
+   - Serves as fallback for missed Pub/Sub messages
    - Detect any missed updates
    - Pull missing flags
 

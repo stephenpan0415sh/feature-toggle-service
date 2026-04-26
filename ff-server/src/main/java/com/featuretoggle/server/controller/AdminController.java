@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,7 @@ import java.util.Map;
 
 /**
  * Admin API for managing feature flags via dashboard.
+ * Note: Each environment has its own deployment, so environment parameter is not needed in API calls.
  */
 @Slf4j
 @RestController
@@ -29,22 +31,24 @@ public class AdminController {
     private final AdminService adminService;
     private final AuditLogService auditLogService;
     
+    @Value("${FEATURE_TOGGLE_ENVIRONMENT:prod}")
+    private String currentEnvironment;
+    
     /**
      * Create a new feature flag
      */
     @PostMapping("/flags")
     @Operation(summary = "Create a new feature flag")
     public ResponseEntity<Map<String, Object>> createFlag(
-            @Parameter(description = "App key", required = true) @RequestParam String appKey,
-            @Parameter(description = "Environment", required = true) @RequestParam String environment,
+            @Parameter(description = "App key", required = true) @RequestParam("appKey") String appKey,
             @RequestBody FeatureFlag flagRequest,
             HttpServletRequest request) {
         
         try {
-            FeatureFlag flag = adminService.createFlag(appKey, environment, flagRequest);
+            FeatureFlag flag = adminService.createFlag(appKey, currentEnvironment, flagRequest);
             
             // Log configuration change
-            logConfigChange(appKey, environment, flagRequest.getFlagKey(), 
+            logConfigChange(appKey, flagRequest.getFlagKey(), 
                 ConfigChangeEvent.ChangeType.CREATE, null, flag, "Create flag via admin API", request);
             
             return ResponseEntity.ok(Map.of(
@@ -67,20 +71,19 @@ public class AdminController {
     @PutMapping("/flags/{flagKey}")
     @Operation(summary = "Update an existing feature flag")
     public ResponseEntity<Map<String, Object>> updateFlag(
-            @Parameter(description = "App key", required = true) @RequestParam String appKey,
-            @Parameter(description = "Environment", required = true) @RequestParam String environment,
+            @Parameter(description = "App key", required = true) @RequestParam("appKey") String appKey,
             @Parameter(description = "Flag key", required = true) @PathVariable String flagKey,
             @RequestBody FeatureFlag flagRequest,
             HttpServletRequest request) {
         
         try {
-            FeatureFlag flag = adminService.updateFlag(appKey, environment, flagKey, flagRequest);
+            FeatureFlag flag = adminService.updateFlag(appKey, currentEnvironment, flagKey, flagRequest);
             
             // Get previous state (in production, fetch from DB before update)
-            FeatureFlag previousState = adminService.getFlag(appKey, environment, flagKey);
+            FeatureFlag previousState = adminService.getFlag(appKey, currentEnvironment, flagKey);
             
             // Log configuration change
-            logConfigChange(appKey, environment, flagKey, 
+            logConfigChange(appKey, flagKey, 
                 ConfigChangeEvent.ChangeType.UPDATE, previousState, flag, "Update flag via admin API", request);
             
             return ResponseEntity.ok(Map.of(
@@ -103,19 +106,18 @@ public class AdminController {
     @DeleteMapping("/flags/{flagKey}")
     @Operation(summary = "Delete a feature flag (hard delete)")
     public ResponseEntity<Map<String, Object>> deleteFlag(
-            @Parameter(description = "App key", required = true) @RequestParam String appKey,
-            @Parameter(description = "Environment", required = true) @RequestParam String environment,
+            @Parameter(description = "App key", required = true) @RequestParam("appKey") String appKey,
             @Parameter(description = "Flag key", required = true) @PathVariable String flagKey,
             HttpServletRequest request) {
         
         try {
             // Get flag before deletion for audit log
-            FeatureFlag previousState = adminService.getFlag(appKey, environment, flagKey);
+            FeatureFlag previousState = adminService.getFlag(appKey, currentEnvironment, flagKey);
             
-            adminService.deleteFlag(appKey, environment, flagKey);
+            adminService.deleteFlag(appKey, currentEnvironment, flagKey);
             
             // Log configuration change
-            logConfigChange(appKey, environment, flagKey, 
+            logConfigChange(appKey, flagKey, 
                 ConfigChangeEvent.ChangeType.DELETE, previousState, null, "Delete flag via admin API", request);
             
             return ResponseEntity.ok(Map.of(
@@ -132,50 +134,39 @@ public class AdminController {
     }
     
     /**
-     * Get a feature flag by key
-     */
-    @GetMapping("/flags/{flagKey}")
-    @Operation(summary = "Get a feature flag by key")
-    public ResponseEntity<Map<String, Object>> getFlag(
-            @Parameter(description = "App key", required = true) @RequestParam String appKey,
-            @Parameter(description = "Environment", required = true) @RequestParam String environment,
-            @Parameter(description = "Flag key", required = true) @PathVariable String flagKey) {
-        
-        try {
-            FeatureFlag flag = adminService.getFlag(appKey, environment, flagKey);
-            
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "data", flag
-            ));
-        } catch (Exception e) {
-            log.error("Error getting flag", e);
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "error", e.getMessage()
-            ));
-        }
-    }
-    
-    /**
-     * List all flags for an app and environment
+     * Get feature flag(s) - returns single flag if flagKey provided, otherwise all flags
      */
     @GetMapping("/flags")
-    @Operation(summary = "List all flags for an app and environment")
-    public ResponseEntity<Map<String, Object>> listFlags(
-            @Parameter(description = "App key", required = true) @RequestParam String appKey,
-            @Parameter(description = "Environment", required = true) @RequestParam String environment) {
+    @Operation(summary = "Get feature flag(s)", description = "Returns a single flag if flagKey is provided, otherwise returns all flags for the app.")
+    public ResponseEntity<Map<String, Object>> getFlags(
+            @Parameter(description = "App key", required = true) @RequestParam("appKey") String appKey,
+            @Parameter(description = "Flag key (optional - if not provided, returns all flags)") @RequestParam(value = "flagKey", required = false) String flagKey) {
         
         try {
-            List<FeatureFlag> flags = adminService.listFlags(appKey, environment);
-            
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "data", flags,
-                "total", flags.size()
-            ));
+            if (flagKey != null && !flagKey.isEmpty()) {
+                // Get single flag
+                FeatureFlag flag = adminService.getFlag(appKey, currentEnvironment, flagKey);
+                if (flag == null) {
+                    return ResponseEntity.status(404).body(Map.of(
+                        "success", false,
+                        "error", "Flag not found: " + flagKey
+                    ));
+                }
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", flag
+                ));
+            } else {
+                // Get all flags
+                List<FeatureFlag> flags = adminService.listFlags(appKey, currentEnvironment);
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", flags,
+                    "total", flags.size()
+                ));
+            }
         } catch (Exception e) {
-            log.error("Error listing flags", e);
+            log.error("Error getting flag(s)", e);
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
                 "error", e.getMessage()
@@ -186,7 +177,7 @@ public class AdminController {
     /**
      * Log configuration change event
      */
-    private void logConfigChange(String appKey, String environment, String flagKey,
+    private void logConfigChange(String appKey, String flagKey,
                                  ConfigChangeEvent.ChangeType changeType,
                                  FeatureFlag previousState, FeatureFlag newState,
                                  String reason,
@@ -199,7 +190,7 @@ public class AdminController {
                 .eventId(java.util.UUID.randomUUID().toString())
                 .timestamp(System.currentTimeMillis())
                 .appKey(appKey)
-                .environment(environment)
+                .environment(currentEnvironment)
                 .flagKey(flagKey)
                 .changeType(changeType)
                 .changedBy("admin-user") // TODO: Integrate with authentication system in production
@@ -234,46 +225,12 @@ public class AdminController {
      * Convert FeatureFlag to Map for audit logging
      */
     private Map<String, Object> convertToMap(FeatureFlag flag) {
-        if (flag == null) {
-            return null;
-        }
-        
-        // Convert rules to detailed map with conditions
-        List<Map<String, Object>> rulesDetail = null;
-        if (flag.getRules() != null && !flag.getRules().isEmpty()) {
-            rulesDetail = flag.getRules().stream()
-                .map(rule -> {
-                    Map<String, Object> ruleMap = new java.util.HashMap<>();
-                    ruleMap.put("id", rule.getId());
-                    ruleMap.put("priority", rule.getPriority());
-                    ruleMap.put("type", rule.getType());
-                    ruleMap.put("actionValue", rule.getActionValue());
-                    
-                    // Include conditions detail
-                    if (rule.getConditions() != null && !rule.getConditions().isEmpty()) {
-                        ruleMap.put("conditions", rule.getConditions().stream()
-                            .map(cond -> Map.of(
-                                "attribute", cond.attribute(),
-                                "operator", cond.operator(),
-                                "values", cond.values()
-                            ))
-                            .collect(java.util.stream.Collectors.toList()));
-                    }
-                    
-                    return ruleMap;
-                })
-                .collect(java.util.stream.Collectors.toList());
-        }
-        
         return Map.of(
             "flagKey", flag.getFlagKey(),
             "name", flag.getName(),
             "status", flag.getStatus(),
             "defaultValue", flag.getDefaultValue(),
-            "version", flag.getVersion(),
-            "releaseVersion", flag.getReleaseVersion() != null ? flag.getReleaseVersion() : "N/A",
-            "rulesCount", flag.getRules() != null ? flag.getRules().size() : 0,
-            "rules", rulesDetail != null ? rulesDetail : java.util.List.of()
+            "version", flag.getVersion()
         );
     }
 }

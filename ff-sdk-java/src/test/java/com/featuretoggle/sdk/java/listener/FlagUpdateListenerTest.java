@@ -114,12 +114,15 @@ class FlagUpdateListenerTest {
     
     @Test
     void onMessage_ShouldHandleException_Gracefully() throws Exception {
-        // Given - Simulate JSON parse error (Jackson throws JsonProcessingException)
-        when(objectMapper.readValue(anyString(), eq(java.util.Map.class)))
-            .thenThrow(new JsonProcessingException("JSON parse error") {});
+        // Given - Create a separate listener with a mock that throws exception
+        ObjectMapper errorMapper = mock(ObjectMapper.class);
+        doThrow(new RuntimeException("JSON parse error"))
+            .when(errorMapper).readValue(anyString(), eq(java.util.Map.class));
+        
+        FlagUpdateListener errorListener = new FlagUpdateListener(featureToggleClient, errorMapper);
         
         // When & Then - Should not throw exception (caught and logged)
-        assertDoesNotThrow(() -> listener.onMessage(message, null));
+        assertDoesNotThrow(() -> errorListener.onMessage(message, null));
         
         // Should not trigger sync on error
         Thread.sleep(150);

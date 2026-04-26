@@ -13,7 +13,7 @@ This document provides practical examples of how to interact with the Feature To
 
 ### 1. Create a Flag
 ```bash
-curl -X POST "http://localhost:8080/api/admin/flags?appKey=my-app&environment=prod" \
+curl -X POST "http://localhost:8080/api/admin/flags?appKey=my-app" \
      -H "Content-Type: application/json" \
      -d '{
        "flagKey": "enable_dark_mode",
@@ -25,7 +25,7 @@ curl -X POST "http://localhost:8080/api/admin/flags?appKey=my-app&environment=pr
 
 ### 2. Update a Flag
 ```bash
-curl -X PUT "http://localhost:8080/api/admin/flags/enable_dark_mode?appKey=my-app&environment=prod" \
+curl -X PUT "http://localhost:8080/api/admin/flags/enable_dark_mode?appKey=my-app" \
      -H "Content-Type: application/json" \
      -d '{
        "status": 1,
@@ -42,7 +42,7 @@ curl -X PUT "http://localhost:8080/api/admin/flags/enable_dark_mode?appKey=my-ap
 
 ### 3. List All Flags
 ```bash
-curl "http://localhost:8080/api/admin/flags?appKey=my-app&environment=prod"
+curl "http://localhost:8080/api/admin/flags?appKey=my-app"
 ```
 
 ---
@@ -51,7 +51,7 @@ curl "http://localhost:8080/api/admin/flags?appKey=my-app&environment=prod"
 
 ### 1. Evaluate a Single Flag
 ```bash
-curl "http://localhost:8080/api/client/flags/enable_dark_mode?appKey=my-app&userId=user_123&region=US"
+curl "http://localhost:8080/api/client/evaluate/enable_dark_mode?appKey=my-app&userId=user_123&region=US"
 ```
 
 ### 2. Batch Evaluate Flags

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>FeatureFlag.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle SDK Core</a> &gt; <a href="../index.html" class="el_bundle">ff-common</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.common.model</a> &gt; <span class="el_source">FeatureFlag.java</span></div><h1>FeatureFlag.java</h1><pre class="source lang-java linenums">package com.featuretoggle.common.model;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Feature Flag model representing a toggleable feature.
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+<span class="nc bnc" id="L19" title="All 102 branches missed.">@Data</span>
+<span class="nc" id="L20">@Builder</span>
+<span class="nc" id="L21">@NoArgsConstructor</span>
+<span class="fc" id="L22">@AllArgsConstructor</span>
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class FeatureFlag implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Unique identifier for the flag
+     */
+<span class="nc" id="L31">    private Long id;</span>
+
+    /**
+     * Application ID that owns this flag
+     */
+<span class="nc" id="L36">    private Long appId;</span>
+
+    /**
+     * Unique flag key within the application (e.g., &quot;new_checkout_flow&quot;)
+     */
+<span class="fc" id="L41">    private String flagKey;</span>
+
+    /**
+     * Human-readable name
+     */
+<span class="nc" id="L46">    private String name;</span>
+
+    /**
+     * Environment: dev, staging, prod
+     */
+<span class="fc" id="L51">    private String environment;</span>
+
+    /**
+     * Flag status: 0-disabled, 1-enabled
+     */
+<span class="nc" id="L56">    private Integer status;</span>
+
+    /**
+     * Default value when no rules match
+     */
+<span class="fc" id="L61">    private String defaultValue;</span>
+
+    /**
+     * Optimistic locking version number
+     */
+<span class="nc" id="L66">    private Long version;</span>
+
+    /**
+     * Associated release version (e.g., &quot;v1.2.3&quot;, &quot;release-2024-04&quot;)
+     */
+<span class="fc" id="L71">    private String releaseVersion;</span>
+
+    /**
+     * List of evaluation rules (ordered by priority)
+     */
+<span class="fc" id="L76">    private List&lt;Rule&gt; rules;</span>
+
+    /**
+     * Creation timestamp
+     */
+<span class="nc" id="L81">    private LocalDateTime createdAt;</span>
+
+    /**
+     * Last update timestamp
+     */
+<span class="nc" id="L86">    private LocalDateTime updatedAt;</span>
+
+    /**
+     * Check if the flag is enabled
+     */
+    public boolean isEnabled() {
+<span class="pc bpc" id="L92" title="1 of 4 branches missed.">        return status != null &amp;&amp; status == 1;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

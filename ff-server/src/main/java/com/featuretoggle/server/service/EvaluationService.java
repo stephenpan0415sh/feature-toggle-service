@@ -134,16 +134,9 @@ public class EvaluationService {
     }
 
     /**
-     * Get all flags for SDK initialization (with version info)
-     * Supports incremental sync based on lastKnownVersion
-     */
-    public List<FeatureFlag> getAllFlags(String appKey, String environment) {
-        return getAllFlagsIncremental(appKey, environment, null);
-    }
-
-    /**
      * Get changed flags since last known version (incremental sync)
      * Returns only flags that have been updated since the specified version
+     * If lastKnownVersion is null, returns all flags (full sync)
      */
     public List<FeatureFlag> getAllFlagsIncremental(String appKey, String environment, Long lastKnownVersion) {
         try {
@@ -235,7 +228,7 @@ public class EvaluationService {
     public Map<String, Object> getCacheStats(String appKey, String environment) {
         Map<String, Object> stats = flagCacheService.getCacheStats(appKey, environment);
         
-        // Update metrics gauge
+        // Update metrics gauge (called by scheduled task, not on every request)
         if (stats.containsKey("cachedFlags")) {
             int cachedFlags = ((Number) stats.get("cachedFlags")).intValue();
             metricsCollector.updateCachedFlagsGauge(appKey, environment, cachedFlags);
@@ -250,55 +243,58 @@ public class EvaluationService {
      * Refreshes Redis cache and notifies clients to update their local memory
      */
     public void publishChange(String appKey, String flagKey, String environment, Long version) {
-        try {
-            // 1. Load latest data from DB (already saved by admin API)
-            FeatureFlag updatedFlag = loadFlagWithRules(appKey, flagKey, environment);
-            
-            if (updatedFlag != null) {
-                // Update or create flag
-                flagCacheService.saveToCache(appKey, updatedFlag, environment);
-                flagCacheService.updateAppFlagsToCache(appKey, updatedFlag, environment);
-                log.info("Refreshed Redis cache for flag: {}", flagKey);
-            } else {
-                // Flag deleted - remove from cache
-                flagCacheService.invalidateCache(appKey, flagKey, environment);
-                log.info("Removed deleted flag from cache: {}", flagKey);
-            }
-            
-            // 2. Publish message to app-specific channel for SDK clients
-            String channel = "feature_flag_changes:" + appKey;
-            String message = String.format(
-                "{\"flagKey\":\"%s\",\"environment\":\"%s\",\"version\":%d,\"deleted\":%s}",
-                flagKey, environment, version, updatedFlag == null);
-            
-            redisTemplate.convertAndSend(channel, message);
-            log.info("Published config change to channel {}: {}", channel, message);
-        } catch (Exception e) {
-            log.error("Failed to publish config change", e);
-        }
+        publishChangeInternal(appKey, flagKey, environment, version, false);
     }
 
     /**
      * Publish flag deletion to Redis for SDK clients to subscribe
      * Called by admin API after deleting flag from database
      * Removes flag from Redis cache and notifies clients to remove from their local memory
+     * Optimized: skips database query since we know the flag is deleted
      */
     public void publishDelete(String appKey, String flagKey, String environment, Long version) {
+        publishChangeInternal(appKey, flagKey, environment, version, true);
+    }
+    
+    /**
+     * Internal method to publish change or deletion
+     * @param isDeletion if true, skip DB query and directly invalidate cache
+     */
+    private void publishChangeInternal(String appKey, String flagKey, String environment, Long version, boolean isDeletion) {
         try {
-            // 1. Remove from Redis cache directly (no DB query needed)
-            flagCacheService.invalidateCache(appKey, flagKey, environment);
-            log.info("Removed deleted flag from cache: {}", flagKey);
+            FeatureFlag updatedFlag;
             
-            // 2. Publish deletion message to app-specific channel for SDK clients
+            if (isDeletion) {
+                // Flag deleted - skip DB query, directly invalidate cache
+                updatedFlag = null;
+                flagCacheService.invalidateCache(appKey, flagKey, environment);
+                log.info("Removed deleted flag from cache: {}", flagKey);
+            } else {
+                // Flag updated - load latest data from DB (already saved by admin API)
+                updatedFlag = loadFlagWithRules(appKey, flagKey, environment);
+                
+                if (updatedFlag != null) {
+                    // Update or create flag
+                    flagCacheService.saveToCache(appKey, updatedFlag, environment);
+                    flagCacheService.updateAppFlagsToCache(appKey, updatedFlag, environment);
+                    log.info("Refreshed Redis cache for flag: {}", flagKey);
+                } else {
+                    // Flag doesn't exist anymore - treat as deletion
+                    flagCacheService.invalidateCache(appKey, flagKey, environment);
+                    log.info("Removed non-existent flag from cache: {}", flagKey);
+                }
+            }
+            
+            // Publish message to app-specific channel for SDK clients
             String channel = "feature_flag_changes:" + appKey;
             String message = String.format(
-                "{\"flagKey\":\"%s\",\"environment\":\"%s\",\"version\":%d,\"deleted\":true}",
-                flagKey, environment, version);
+                "{\"flagKey\":\"%s\",\"environment\":\"%s\",\"version\":%d,\"deleted\":%s}",
+                flagKey, environment, version, isDeletion || updatedFlag == null);
             
             redisTemplate.convertAndSend(channel, message);
-            log.info("Published flag deletion to channel {}: {}", channel, message);
+            log.info("Published config change to channel {}: {}", channel, message);
         } catch (Exception e) {
-            log.error("Failed to publish flag deletion", e);
+            log.error("Failed to publish config change", e);
         }
     }
 
@@ -343,9 +339,16 @@ public class EvaluationService {
                 rule.setPriority(ruleEntity.getPriority());
                 rule.setActionValue(ruleEntity.getActionValue());
                 rule.setDescription(ruleEntity.getDescription());
+                
+                // Set default type to TARGETING if not specified
+                // This handles cases where rules were created without explicit type
+                if (rule.getType() == null) {
+                    rule.setType(Rule.RuleType.TARGETING);
+                }
+                
                 rules.add(rule);
             }
-            
+
             // Build FeatureFlag
             return FeatureFlag.builder()
                 .id(entity.getId())

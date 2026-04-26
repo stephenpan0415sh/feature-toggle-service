@@ -15,7 +15,6 @@
 
 # Maven
 target/
-!coverage-report/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -66,3 +65,6 @@ local.properties
 
 # Lombok
 delombok/
+
+# Documentation & Coverage (Generated)
+docs/08-testing/test-coverage-report/

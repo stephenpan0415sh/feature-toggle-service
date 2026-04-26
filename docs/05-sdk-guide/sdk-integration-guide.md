@@ -29,7 +29,7 @@ feature-toggle:
   server-url: http://feature-toggle-server:8080
   app-key: ${APP_KEY:my-application}
   environment: ${ENV:prod}
-  pull-interval: 30000  # Sync interval in milliseconds
+  pull-interval: 300000  # Heartbeat sync interval in milliseconds (default: 5 minutes). Set to 0 to disable.
 ```
 
 **Step 2: Use via Dependency Injection**

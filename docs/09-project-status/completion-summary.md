@@ -149,8 +149,8 @@ feature_flag_cache_miss_total
 
 ### 3.2. Code Quality
 
-- ✅ **Test Coverage**: 85%+ across all modules
-- ✅ **Unit Tests**: 9 test classes covering core logic
+- ⚠️ **Test Coverage**: ~65% (Core logic covered; optimization in progress)
+- ✅ **Unit Tests**: 12 test classes covering critical paths
 - ✅ **Mock Strategy**: Comprehensive mocking for Redis, DB, HTTP
 - ✅ **Error Handling**: Fail-safe design with graceful degradation
 

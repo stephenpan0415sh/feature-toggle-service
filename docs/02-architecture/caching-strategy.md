@@ -252,10 +252,10 @@ SDK evaluates flag
 - ✅ Pros: Zero cache miss after initial load, fastest evaluation
 - ⚠️ Cons: Relies on Pub/Sub or periodic sync for updates
 
-### Strategy 3: Incremental Sync (Periodic)
+### Strategy 3: Heartbeat Sync (Fallback)
 
 ```
-SDK periodic sync (every 30s)
+SDK periodic heartbeat sync (every 5 minutes, configurable)
     │
     ├─▶ Send lastKnownVersion to server
     │
@@ -270,10 +270,13 @@ SDK periodic sync (every 30s)
     └─▶ SDK updates L1 cache with delta
 ```
 
+**Purpose**: Fallback mechanism to detect missed Pub/Sub messages and ensure eventual consistency.
+
 **Benefits**:
 - Reduces bandwidth by 90%+ (only transfer changes)
 - Faster than full sync
 - Lower server load
+- Safety net for Pub/Sub message loss
 
 ---
 
@@ -395,29 +398,14 @@ User request → L1 cache miss
 
 **Guarantee**: L1 cache is populated on first access.
 
-#### Layer 3: Full Version Comparison (Safety Net)
-
-Periodic full version comparison (every 5 minutes):
-
-```
-SDK compares all local flag versions with server
-    │
-    ├─▶ Mismatch detected → Full sync
-    │
-    └─▶ Match → No action
-```
-
-**Purpose**: Catch any edge cases where incremental sync might miss updates.
-
 ### Consistency Guarantee
 
 | Scenario | Detection Time | Recovery Method | Max Staleness Window |
 |----------|---------------|-----------------|----------------------|
 | Pub/Sub success | < 100ms | Push-based update | < 100ms |
-| Pub/Sub fail + Heartbeat | < 30s | Heartbeat version check | < 30s |
-| All sync fails | < 5min | Full version comparison | < 5min |
+| Pub/Sub fail + Heartbeat | < 5min | Heartbeat version check | < 5min |
 
-**Real-world expectation**: > 99.9% of updates propagate within 30 seconds.
+**Real-world expectation**: > 99.9% of updates propagate within 100ms via Pub/Sub. The 5-minute heartbeat serves as a safety net for edge cases.
 
 **Key Point**: L1 cache never expires, but is **actively updated** via Pub/Sub or heartbeat. No "cache miss" scenario for existing flags.
 
@@ -587,7 +575,7 @@ if (response.hasHeader("Content-Encoding", "gzip")) {
 
 ### Key Metrics
 
-```prometheus
+```
 # Cache hit rates
 feature_flag_cache_hit_total{app_key="ecommerce-web", environment="prod"} 8500
 feature_flag_cache_miss_total{app_key="ecommerce-web", environment="prod"} 1500

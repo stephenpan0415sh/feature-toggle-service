@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>RuleEvaluator.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Server</a> &gt; <a href="../index.html" class="el_bundle">ff-sdk-core</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.sdk.core.evaluator</a> &gt; <span class="el_source">RuleEvaluator.java</span></div><h1>RuleEvaluator.java</h1><pre class="source lang-java linenums">package com.featuretoggle.sdk.core.evaluator;
+
+import com.featuretoggle.common.model.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Core rule evaluator that matches user context against feature flag rules.
+ * This is a pure function with no external dependencies (no Redis, HTTP, etc.).
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+<span class="fc" id="L17">public class RuleEvaluator {</span>
+
+<span class="fc" id="L19">    private static final Logger log = LoggerFactory.getLogger(RuleEvaluator.class);</span>
+
+    /**
+     * Evaluate a feature flag for a given user context.
+     * 
+     * @param flag The feature flag to evaluate
+     * @param userContext The user context containing attributes
+     * @return EvaluationDetail with full explainability
+     */
+    public EvaluationDetail evaluate(FeatureFlag flag, UserContext userContext) {
+        try {
+            // Check if flag is disabled
+<span class="fc bfc" id="L31" title="All 2 branches covered.">            if (!flag.isEnabled()) {</span>
+<span class="fc" id="L32">                return buildEvaluationDetail(flag, userContext, </span>
+                    EvaluationDetail.EvaluationReason.DEFAULT, 
+                    null, 
+<span class="fc" id="L35">                    flag.getDefaultValue(),</span>
+<span class="fc" id="L36">                    Boolean.parseBoolean(flag.getDefaultValue()));</span>
+            }
+
+            // Get rules sorted by priority
+<span class="fc" id="L40">            List&lt;Rule&gt; rules = flag.getRules();</span>
+<span class="pc bpc" id="L41" title="1 of 4 branches missed.">            if (rules == null || rules.isEmpty()) {</span>
+<span class="fc" id="L42">                return buildEvaluationDetail(flag, userContext,</span>
+                    EvaluationDetail.EvaluationReason.DEFAULT,
+                    null,
+<span class="fc" id="L45">                    flag.getDefaultValue(),</span>
+<span class="fc" id="L46">                    Boolean.parseBoolean(flag.getDefaultValue()));</span>
+            }
+
+            // Sort rules by priority (lower number = higher priority)
+<span class="fc" id="L50">            List&lt;Rule&gt; sortedRules = rules.stream()</span>
+<span class="fc" id="L51">                .sorted(Comparator.comparingInt(Rule::getPriority))</span>
+<span class="fc" id="L52">                .collect(Collectors.toList());</span>
+
+            // Evaluate rules in priority order
+<span class="fc bfc" id="L55" title="All 2 branches covered.">            for (Rule rule : sortedRules) {</span>
+<span class="fc" id="L56">                EvaluationResult result = evaluateRule(rule, userContext);</span>
+                
+<span class="fc bfc" id="L58" title="All 2 branches covered.">                if (result.matched()) {</span>
+<span class="fc" id="L59">                    boolean enabled = determineEnabledState(rule, result.value());</span>
+<span class="fc" id="L60">                    return buildEvaluationDetail(flag, userContext,</span>
+<span class="fc" id="L61">                        result.reason(),</span>
+<span class="fc" id="L62">                        rule.getId(),</span>
+<span class="fc" id="L63">                        result.value(),</span>
+                        enabled);
+                }
+                
+                // Blacklist is special: if matched, immediately return false
+<span class="fc bfc" id="L68" title="All 2 branches covered.">                if (result.reason() == EvaluationDetail.EvaluationReason.BLACKLIST) {</span>
+<span class="fc" id="L69">                    log.debug(&quot;User {} blacklisted by rule {}, returning false&quot;, </span>
+<span class="fc" id="L70">                        userContext.userId(), rule.getId());</span>
+<span class="fc" id="L71">                    return buildEvaluationDetail(flag, userContext,</span>
+                        EvaluationDetail.EvaluationReason.BLACKLIST,
+<span class="fc" id="L73">                        rule.getId(),</span>
+                        &quot;false&quot;,
+                        false);
+                }
+<span class="fc" id="L77">            }</span>
+
+            // No rules matched, return default value
+<span class="fc" id="L80">            return buildEvaluationDetail(flag, userContext,</span>
+                EvaluationDetail.EvaluationReason.DEFAULT,
+                null,
+<span class="fc" id="L83">                flag.getDefaultValue(),</span>
+<span class="fc" id="L84">                Boolean.parseBoolean(flag.getDefaultValue()));</span>
+
+<span class="nc" id="L86">        } catch (Exception e) {</span>
+<span class="nc" id="L87">            log.error(&quot;Error evaluating flag: {}&quot;, flag.getFlagKey(), e);</span>
+<span class="nc" id="L88">            return buildEvaluationDetail(flag, userContext,</span>
+                EvaluationDetail.EvaluationReason.ERROR,
+                null,
+<span class="nc" id="L91">                flag.getDefaultValue(),</span>
+<span class="nc" id="L92">                Boolean.parseBoolean(flag.getDefaultValue()));</span>
+        }
+    }
+
+    /**
+     * Evaluate a single rule against user context.
+     * 
+     * @param rule The rule to evaluate
+     * @param userContext The user context
+     * @return EvaluationResult indicating if the rule matched
+     */
+    private EvaluationResult evaluateRule(Rule rule, UserContext userContext) {
+        try {
+            // Validate rule
+<span class="fc" id="L106">            rule.validate();</span>
+
+            // Handle different rule types
+<span class="fc bfc" id="L109" title="All 5 branches covered.">            return switch (rule.getType()) {</span>
+<span class="fc" id="L110">                case KILL_SWITCH -&gt; evaluateKillSwitch(rule);</span>
+<span class="fc" id="L111">                case WHITELIST -&gt; evaluateWhitelist(rule, userContext);</span>
+<span class="fc" id="L112">                case BLACKLIST -&gt; evaluateBlacklist(rule, userContext);</span>
+<span class="fc" id="L113">                case TARGETING -&gt; evaluateTargeting(rule, userContext);</span>
+<span class="fc" id="L114">                case PERCENTAGE_ROLLOUT -&gt; evaluatePercentageRollout(rule, userContext);</span>
+            };
+<span class="nc" id="L116">        } catch (Exception e) {</span>
+<span class="nc" id="L117">            log.warn(&quot;Error evaluating rule {}: {}&quot;, rule.getId(), e.getMessage());</span>
+<span class="nc" id="L118">            return EvaluationResult.notMatched();</span>
+        }
+    }
+
+    /**
+     * Evaluate kill switch rule.
+     * Kill switch always matches and returns the action value (usually &quot;false&quot;).
+     */
+    private EvaluationResult evaluateKillSwitch(Rule rule) {
+<span class="fc" id="L127">        log.debug(&quot;Kill switch rule {} activated&quot;, rule.getId());</span>
+<span class="fc" id="L128">        return new EvaluationResult(true, rule.getActionValue(), </span>
+            EvaluationDetail.EvaluationReason.KILL_SWITCH);
+    }
+
+    /**
+     * Evaluate whitelist rule.
+     * Checks if user ID is in the whitelist.
+     */
+    private EvaluationResult evaluateWhitelist(Rule rule, UserContext userContext) {
+<span class="fc" id="L137">        List&lt;Condition&gt; conditions = rule.getConditions();</span>
+<span class="pc bpc" id="L138" title="2 of 4 branches missed.">        if (conditions == null || conditions.isEmpty()) {</span>
+<span class="nc" id="L139">            return EvaluationResult.notMatched();</span>
+        }
+
+        // Get the first condition (should be uid IN [...])
+<span class="fc" id="L143">        Condition condition = conditions.get(0);</span>
+<span class="fc" id="L144">        Object userId = userContext.getAttribute(&quot;uid&quot;);</span>
+        
+<span class="pc bpc" id="L146" title="2 of 4 branches missed.">        if (userId == null || condition.values() == null) {</span>
+<span class="nc" id="L147">            return EvaluationResult.notMatched();</span>
+        }
+
+<span class="fc" id="L150">        boolean isInList = condition.values().stream()</span>
+<span class="fc" id="L151">            .anyMatch(value -&gt; value.equals(userId));</span>
+
+<span class="fc bfc" id="L153" title="All 2 branches covered.">        if (isInList) {</span>
+<span class="fc" id="L154">            log.debug(&quot;User {} matched whitelist rule {}&quot;, userId, rule.getId());</span>
+<span class="fc" id="L155">            return new EvaluationResult(true, rule.getActionValue(),</span>
+                EvaluationDetail.EvaluationReason.WHITELIST);
+        }
+
+<span class="fc" id="L159">        return EvaluationResult.notMatched();</span>
+    }
+
+    /**
+     * Evaluate blacklist rule.
+     * If user is in blacklist, return default value (not matched from rule perspective).
+     */
+    private EvaluationResult evaluateBlacklist(Rule rule, UserContext userContext) {
+<span class="fc" id="L167">        List&lt;Condition&gt; conditions = rule.getConditions();</span>
+<span class="pc bpc" id="L168" title="2 of 4 branches missed.">        if (conditions == null || conditions.isEmpty()) {</span>
+<span class="nc" id="L169">            return EvaluationResult.notMatched();</span>
+        }
+
+<span class="fc" id="L172">        Condition condition = conditions.get(0);</span>
+<span class="fc" id="L173">        Object userId = userContext.getAttribute(&quot;uid&quot;);</span>
+        
+<span class="pc bpc" id="L175" title="2 of 4 branches missed.">        if (userId == null || condition.values() == null) {</span>
+<span class="nc" id="L176">            return EvaluationResult.notMatched();</span>
+        }
+
+<span class="fc" id="L179">        boolean isInList = condition.values().stream()</span>
+<span class="fc" id="L180">            .anyMatch(value -&gt; value.equals(userId));</span>
+
+<span class="fc bfc" id="L182" title="All 2 branches covered.">        if (isInList) {</span>
+<span class="fc" id="L183">            log.debug(&quot;User {} matched blacklist rule {}, returning default&quot;, userId, rule.getId());</span>
+            // Blacklist means &quot;don't apply this rule&quot;, so we return not matched
+            // but with a special marker to use default value
+<span class="fc" id="L186">            return new EvaluationResult(false, null,</span>
+                EvaluationDetail.EvaluationReason.BLACKLIST);
+        }
+
+<span class="fc" id="L190">        return EvaluationResult.notMatched();</span>
+    }
+
+    /**
+     * Evaluate targeting rule.
+     * All conditions must match (AND logic).
+     */
+    private EvaluationResult evaluateTargeting(Rule rule, UserContext userContext) {
+<span class="fc" id="L198">        List&lt;Condition&gt; conditions = rule.getConditions();</span>
+<span class="pc bpc" id="L199" title="1 of 4 branches missed.">        if (conditions == null || conditions.isEmpty()) {</span>
+<span class="fc" id="L200">            return EvaluationResult.notMatched();</span>
+        }
+
+        // All conditions must match (AND logic)
+<span class="fc" id="L204">        boolean allMatched = conditions.stream()</span>
+<span class="fc" id="L205">            .allMatch(condition -&gt; evaluateCondition(condition, userContext));</span>
+
+<span class="fc bfc" id="L207" title="All 2 branches covered.">        if (allMatched) {</span>
+<span class="fc" id="L208">            List&lt;String&gt; matchedConditions = conditions.stream()</span>
+<span class="fc" id="L209">                .map(Condition::toReadableString)</span>
+<span class="fc" id="L210">                .collect(Collectors.toList());</span>
+            
+<span class="fc" id="L212">            log.debug(&quot;User matched targeting rule {}: {}&quot;, rule.getId(), matchedConditions);</span>
+<span class="fc" id="L213">            return new EvaluationResult(true, rule.getActionValue(),</span>
+                EvaluationDetail.EvaluationReason.MATCHED_RULE,
+                matchedConditions);
+        }
+
+<span class="fc" id="L218">        return EvaluationResult.notMatched();</span>
+    }
+
+    /**
+     * Evaluate percentage rollout rule.
+     * Uses deterministic hashing to ensure consistent results for the same user.
+     */
+    private EvaluationResult evaluatePercentageRollout(Rule rule, UserContext userContext) {
+<span class="fc" id="L226">        String hashAttribute = rule.getHashAttribute();</span>
+<span class="pc bpc" id="L227" title="2 of 4 branches missed.">        if (hashAttribute == null || hashAttribute.isEmpty()) {</span>
+<span class="nc" id="L228">            log.warn(&quot;Percentage rollout rule {} missing hashAttribute&quot;, rule.getId());</span>
+<span class="nc" id="L229">            return EvaluationResult.notMatched();</span>
+        }
+
+<span class="fc" id="L232">        Object attributeValue = userContext.getAttribute(hashAttribute);</span>
+<span class="pc bpc" id="L233" title="1 of 2 branches missed.">        if (attributeValue == null) {</span>
+<span class="nc" id="L234">            log.debug(&quot;User missing attribute {} for percentage rollout&quot;, hashAttribute);</span>
+<span class="nc" id="L235">            return EvaluationResult.notMatched();</span>
+        }
+
+        // Calculate hash and determine if user is in percentage
+<span class="fc" id="L239">        int percentage = rule.getPercentage();</span>
+<span class="fc" id="L240">        boolean isInPercentage = PercentageCalculator.isInPercentage(</span>
+<span class="fc" id="L241">            attributeValue.toString(), </span>
+            percentage
+        );
+
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        if (isInPercentage) {</span>
+<span class="fc" id="L246">            log.debug(&quot;User {} in {}% rollout for rule {}&quot;, </span>
+<span class="fc" id="L247">                attributeValue, percentage, rule.getId());</span>
+<span class="fc" id="L248">            return new EvaluationResult(true, rule.getActionValue(),</span>
+                EvaluationDetail.EvaluationReason.PERCENTAGE_ROLLOUT);
+        }
+
+<span class="nc" id="L252">        return EvaluationResult.notMatched();</span>
+    }
+
+    /**
+     * Evaluate a single condition against user context.
+     */
+    private boolean evaluateCondition(Condition condition, UserContext userContext) {
+<span class="fc" id="L259">        Object userValue = userContext.getAttribute(condition.attribute());</span>
+        
+        // Handle unary operators
+<span class="fc bfc" id="L262" title="All 2 branches covered.">        if (condition.operator() == Condition.Operator.IS_TRUE) {</span>
+<span class="pc bpc" id="L263" title="2 of 4 branches missed.">            return userValue instanceof Boolean &amp;&amp; (Boolean) userValue;</span>
+        }
+<span class="fc bfc" id="L265" title="All 2 branches covered.">        if (condition.operator() == Condition.Operator.IS_FALSE) {</span>
+<span class="pc bpc" id="L266" title="2 of 4 branches missed.">            return userValue instanceof Boolean &amp;&amp; !(Boolean) userValue;</span>
+        }
+
+<span class="pc bpc" id="L269" title="3 of 6 branches missed.">        if (userValue == null || condition.values() == null || condition.values().isEmpty()) {</span>
+<span class="nc" id="L270">            return false;</span>
+        }
+
+<span class="pc bpc" id="L273" title="1 of 13 branches missed.">        return switch (condition.operator()) {</span>
+<span class="fc" id="L274">            case EQ -&gt; compareEqual(userValue, condition.values().get(0));</span>
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">            case NEQ -&gt; !compareEqual(userValue, condition.values().get(0));</span>
+<span class="fc" id="L276">            case IN -&gt; isInList(userValue, condition.values());</span>
+<span class="pc bpc" id="L277" title="1 of 2 branches missed.">            case NOT_IN -&gt; !isInList(userValue, condition.values());</span>
+<span class="fc" id="L278">            case GT -&gt; compareGreaterThan(userValue, condition.values().get(0));</span>
+<span class="fc" id="L279">            case GTE -&gt; compareGreaterThanOrEqual(userValue, condition.values().get(0));</span>
+<span class="fc" id="L280">            case LT -&gt; compareLessThan(userValue, condition.values().get(0));</span>
+<span class="fc" id="L281">            case LTE -&gt; compareLessThanOrEqual(userValue, condition.values().get(0));</span>
+<span class="fc" id="L282">            case CONTAINS -&gt; compareContains(userValue, condition.values().get(0));</span>
+<span class="fc" id="L283">            case STARTS_WITH -&gt; compareStartsWith(userValue, condition.values().get(0));</span>
+<span class="fc" id="L284">            case ENDS_WITH -&gt; compareEndsWith(userValue, condition.values().get(0));</span>
+<span class="fc" id="L285">            case REGEX -&gt; compareRegex(userValue, condition.values().get(0));</span>
+<span class="nc" id="L286">            default -&gt; false;</span>
+        };
+    }
+
+    // Comparison helper methods
+
+    private boolean compareEqual(Object userValue, Object conditionValue) {
+<span class="pc bpc" id="L293" title="1 of 4 branches missed.">        if (userValue instanceof Number &amp;&amp; conditionValue instanceof Number) {</span>
+<span class="pc bpc" id="L294" title="1 of 2 branches missed.">            return ((Number) userValue).doubleValue() == ((Number) conditionValue).doubleValue();</span>
+        }
+<span class="fc" id="L296">        return Objects.equals(userValue.toString(), conditionValue.toString());</span>
+    }
+
+    private boolean isInList(Object userValue, List&lt;Object&gt; values) {
+<span class="fc" id="L300">        return values.stream().anyMatch(value -&gt; compareEqual(userValue, value));</span>
+    }
+
+    private boolean compareGreaterThan(Object userValue, Object conditionValue) {
+<span class="pc bpc" id="L304" title="1 of 4 branches missed.">        if (userValue instanceof Number &amp;&amp; conditionValue instanceof Number) {</span>
+<span class="pc bpc" id="L305" title="1 of 2 branches missed.">            return ((Number) userValue).doubleValue() &gt; ((Number) conditionValue).doubleValue();</span>
+        }
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">        return userValue.toString().compareTo(conditionValue.toString()) &gt; 0;</span>
+    }
+
+    private boolean compareGreaterThanOrEqual(Object userValue, Object conditionValue) {
+<span class="pc bpc" id="L311" title="2 of 4 branches missed.">        if (userValue instanceof Number &amp;&amp; conditionValue instanceof Number) {</span>
+<span class="pc bpc" id="L312" title="1 of 2 branches missed.">            return ((Number) userValue).doubleValue() &gt;= ((Number) conditionValue).doubleValue();</span>
+        }
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        return userValue.toString().compareTo(conditionValue.toString()) &gt;= 0;</span>
+    }
+
+    private boolean compareLessThan(Object userValue, Object conditionValue) {
+<span class="pc bpc" id="L318" title="2 of 4 branches missed.">        if (userValue instanceof Number &amp;&amp; conditionValue instanceof Number) {</span>
+<span class="pc bpc" id="L319" title="1 of 2 branches missed.">            return ((Number) userValue).doubleValue() &lt; ((Number) conditionValue).doubleValue();</span>
+        }
+<span class="nc bnc" id="L321" title="All 2 branches missed.">        return userValue.toString().compareTo(conditionValue.toString()) &lt; 0;</span>
+    }
+
+    private boolean compareLessThanOrEqual(Object userValue, Object conditionValue) {
+<span class="pc bpc" id="L325" title="2 of 4 branches missed.">        if (userValue instanceof Number &amp;&amp; conditionValue instanceof Number) {</span>
+<span class="pc bpc" id="L326" title="1 of 2 branches missed.">            return ((Number) userValue).doubleValue() &lt;= ((Number) conditionValue).doubleValue();</span>
+        }
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        return userValue.toString().compareTo(conditionValue.toString()) &lt;= 0;</span>
+    }
+
+    private boolean compareContains(Object userValue, Object conditionValue) {
+<span class="fc" id="L332">        return userValue.toString().contains(conditionValue.toString());</span>
+    }
+
+    private boolean compareStartsWith(Object userValue, Object conditionValue) {
+<span class="fc" id="L336">        return userValue.toString().startsWith(conditionValue.toString());</span>
+    }
+
+    private boolean compareEndsWith(Object userValue, Object conditionValue) {
+<span class="fc" id="L340">        return userValue.toString().endsWith(conditionValue.toString());</span>
+    }
+
+    private boolean compareRegex(Object userValue, Object conditionValue) {
+        try {
+<span class="fc" id="L345">            return userValue.toString().matches(conditionValue.toString());</span>
+<span class="nc" id="L346">        } catch (Exception e) {</span>
+<span class="nc" id="L347">            log.warn(&quot;Invalid regex pattern: {}&quot;, conditionValue);</span>
+<span class="nc" id="L348">            return false;</span>
+        }
+    }
+
+    /**
+     * Determine if the flag is enabled based on the rule's action value.
+     */
+    private boolean determineEnabledState(Rule rule, String actionValue) {
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">        if (actionValue == null) {</span>
+<span class="nc" id="L357">            return false;</span>
+        }
+        // For kill switch, action value &quot;false&quot; means disabled
+<span class="fc bfc" id="L360" title="All 2 branches covered.">        if (rule.getType() == Rule.RuleType.KILL_SWITCH) {</span>
+<span class="fc" id="L361">            return Boolean.parseBoolean(actionValue);</span>
+        }
+        // For other rules, any non-null action value means enabled
+<span class="fc" id="L364">        return true;</span>
+    }
+
+    /**
+     * Build evaluation detail with full explainability.
+     */
+    private EvaluationDetail buildEvaluationDetail(
+            FeatureFlag flag,
+            UserContext userContext,
+            EvaluationDetail.EvaluationReason reason,
+            String matchedRuleId,
+            String value,
+            boolean enabled) {
+        
+        // Extract matched conditions for explainability
+<span class="fc" id="L379">        List&lt;String&gt; matchedConditions = null;</span>
+<span class="pc bpc" id="L380" title="1 of 4 branches missed.">        if (matchedRuleId != null &amp;&amp; flag.getRules() != null) {</span>
+<span class="fc" id="L381">            Optional&lt;Rule&gt; matchedRule = flag.getRules().stream()</span>
+<span class="fc" id="L382">                .filter(r -&gt; r.getId().equals(matchedRuleId))</span>
+<span class="fc" id="L383">                .findFirst();</span>
+            
+<span class="pc bpc" id="L385" title="1 of 4 branches missed.">            if (matchedRule.isPresent() &amp;&amp; matchedRule.get().getConditions() != null) {</span>
+<span class="fc" id="L386">                matchedConditions = matchedRule.get().getConditions().stream()</span>
+<span class="fc" id="L387">                    .map(Condition::toReadableString)</span>
+<span class="fc" id="L388">                    .collect(Collectors.toList());</span>
+            }
+        }
+
+        // Build user context snapshot (only relevant attributes)
+<span class="fc" id="L393">        Map&lt;String, Object&gt; userSnapshot = userContext.attributes();</span>
+
+<span class="fc" id="L395">        return new EvaluationDetail(</span>
+<span class="fc" id="L396">            flag.getFlagKey(),</span>
+            enabled,
+            value,
+            reason,
+            matchedRuleId,
+<span class="fc" id="L401">            UUID.randomUUID().toString(), // traceId</span>
+<span class="fc" id="L402">            flag.getEnvironment(),</span>
+<span class="fc" id="L403">            userContext.getStringAttribute(&quot;region&quot;),</span>
+<span class="fc" id="L404">            flag.getReleaseVersion(),</span>
+<span class="fc" id="L405">            System.currentTimeMillis(),</span>
+            userSnapshot,
+            matchedConditions
+        );
+    }
+
+    /**
+     * Internal result of rule evaluation.
+     */
+<span class="fc" id="L414">    private record EvaluationResult(</span>
+        boolean matched,
+        String value,
+        EvaluationDetail.EvaluationReason reason,
+        List&lt;String&gt; matchedConditions
+    ) {
+        static EvaluationResult notMatched() {
+<span class="fc" id="L421">            return new EvaluationResult(false, null, null, null);</span>
+        }
+
+        EvaluationResult(boolean matched, String value, EvaluationDetail.EvaluationReason reason) {
+<span class="fc" id="L425">            this(matched, value, reason, null);</span>
+<span class="fc" id="L426">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

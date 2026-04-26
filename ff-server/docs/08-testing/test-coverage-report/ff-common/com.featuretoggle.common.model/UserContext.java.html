@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>UserContext.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Server</a> &gt; <a href="../index.html" class="el_bundle">ff-common</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.common.model</a> &gt; <span class="el_source">UserContext.java</span></div><h1>UserContext.java</h1><pre class="source lang-java linenums">package com.featuretoggle.common.model;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.io.Serializable;
+import java.util.Map;
+
+/**
+ * User context model for feature flag evaluation.
+ * Contains user attributes that are used to match against rule conditions.
+ * 
+ * Example JSON structure:
+ * {
+ *   &quot;userId&quot;: &quot;12345&quot;,
+ *   &quot;attributes&quot;: {
+ *     &quot;uid&quot;: 12345,
+ *     &quot;region&quot;: &quot;cn-beijing&quot;,
+ *     &quot;vipLevel&quot;: 2,
+ *     &quot;deviceType&quot;: &quot;ios&quot;,
+ *     &quot;email&quot;: &quot;user@example.com&quot;,
+ *     &quot;accountAge&quot;: 365
+ *   }
+ * }
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+<span class="fc" id="L29">public record UserContext(</span>
+    /**
+     * Unique user identifier
+     */
+    String userId,
+
+    /**
+     * User attributes for rule evaluation
+     * Common attributes:
+     * - uid: User ID (numeric)
+     * - region: Geographic region (e.g., &quot;cn-beijing&quot;, &quot;us-west&quot;)
+     * - vipLevel: VIP level (numeric)
+     * - deviceType: Device type (e.g., &quot;ios&quot;, &quot;android&quot;, &quot;web&quot;)
+     * - email: Email address
+     * - accountAge: Account age in days
+     * - isEmployee: Whether user is an employee (boolean)
+     */
+    Map&lt;String, Object&gt; attributes
+) implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Get a specific attribute value
+     * 
+     * @param attributeName The attribute name
+     * @return The attribute value, or null if not present
+     */
+    public Object getAttribute(String attributeName) {
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        return attributes != null ? attributes.get(attributeName) : null;</span>
+    }
+
+    /**
+     * Check if user has a specific attribute
+     * 
+     * @param attributeName The attribute name
+     * @return true if the attribute exists
+     */
+    public boolean hasAttribute(String attributeName) {
+<span class="nc bnc" id="L68" title="All 4 branches missed.">        return attributes != null &amp;&amp; attributes.containsKey(attributeName);</span>
+    }
+
+    /**
+     * Get attribute as string
+     */
+    public String getStringAttribute(String attributeName) {
+<span class="fc" id="L75">        Object value = getAttribute(attributeName);</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        return value != null ? value.toString() : null;</span>
+    }
+
+    /**
+     * Get attribute as integer
+     */
+    public Integer getIntAttribute(String attributeName) {
+<span class="nc" id="L83">        Object value = getAttribute(attributeName);</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (value instanceof Number) {</span>
+<span class="nc" id="L85">            return ((Number) value).intValue();</span>
+        }
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if (value instanceof String) {</span>
+            try {
+<span class="nc" id="L89">                return Integer.parseInt((String) value);</span>
+<span class="nc" id="L90">            } catch (NumberFormatException e) {</span>
+<span class="nc" id="L91">                return null;</span>
+            }
+        }
+<span class="nc" id="L94">        return null;</span>
+    }
+
+    /**
+     * Get attribute as long
+     */
+    public Long getLongAttribute(String attributeName) {
+<span class="nc" id="L101">        Object value = getAttribute(attributeName);</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (value instanceof Number) {</span>
+<span class="nc" id="L103">            return ((Number) value).longValue();</span>
+        }
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        if (value instanceof String) {</span>
+            try {
+<span class="nc" id="L107">                return Long.parseLong((String) value);</span>
+<span class="nc" id="L108">            } catch (NumberFormatException e) {</span>
+<span class="nc" id="L109">                return null;</span>
+            }
+        }
+<span class="nc" id="L112">        return null;</span>
+    }
+
+    /**
+     * Get attribute as boolean
+     */
+    public Boolean getBooleanAttribute(String attributeName) {
+<span class="nc" id="L119">        Object value = getAttribute(attributeName);</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if (value instanceof Boolean) {</span>
+<span class="nc" id="L121">            return (Boolean) value;</span>
+        }
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (value instanceof String) {</span>
+<span class="nc" id="L124">            return Boolean.parseBoolean((String) value);</span>
+        }
+<span class="nc" id="L126">        return null;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

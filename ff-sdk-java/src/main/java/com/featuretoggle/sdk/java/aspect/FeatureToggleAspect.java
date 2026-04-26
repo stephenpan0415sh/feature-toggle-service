@@ -124,8 +124,9 @@ public class FeatureToggleAspect {
     
     /**
      * Parse default value based on return type
+     * Package-private for testing
      */
-    private Object parseDefaultValue(String defaultValue, Class<?> returnType) {
+    Object parseDefaultValue(String defaultValue, Class<?> returnType) {
         if (returnType == boolean.class || returnType == Boolean.class) {
             return Boolean.parseBoolean(defaultValue);
         } else if (returnType == int.class || returnType == Integer.class) {

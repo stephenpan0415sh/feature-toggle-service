@@ -1,21 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ff-config-prod
+data:
+  db-url: "jdbc:mysql://mysql-service-prod:3306/feature_toggle?useSSL=false&serverTimezone=UTC"
+  redis-host: "redis-service-prod"
+  environment: "prod"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ff-secrets-prod
+type: Opaque
+data:
+  db-username: cm9vdA==  # base64 encoded "root"
+  db-password: cm9vdA==  # base64 encoded "root"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ff-server
+  name: ff-server-prod
   labels:
     app: feature-toggle-service
     component: server
+    environment: prod
 spec:
   replicas: 2
   selector:
     matchLabels:
       app: feature-toggle-service
       component: server
+      environment: prod
   template:
     metadata:
       labels:
         app: feature-toggle-service
         component: server
+        environment: prod
     spec:
       containers:
       - name: ff-server
@@ -24,27 +45,32 @@ spec:
         - containerPort: 8080
           name: http
         env:
+        - name: FEATURE_TOGGLE_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: ff-config-prod
+              key: environment
         - name: SPRING_PROFILES_ACTIVE
           value: "k8s"
         - name: SPRING_DATASOURCE_URL
           valueFrom:
             configMapKeyRef:
-              name: ff-config
+              name: ff-config-prod
               key: db-url
         - name: SPRING_DATASOURCE_USERNAME
           valueFrom:
             secretKeyRef:
-              name: ff-secrets
+              name: ff-secrets-prod
               key: db-username
         - name: SPRING_DATASOURCE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: ff-secrets
+              name: ff-secrets-prod
               key: db-password
         - name: SPRING_REDIS_HOST
           valueFrom:
             configMapKeyRef:
-              name: ff-config
+              name: ff-config-prod
               key: redis-host
         resources:
           requests:
@@ -69,10 +95,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ff-server-service
+  name: ff-server-service-prod
   labels:
     app: feature-toggle-service
     component: server
+    environment: prod
 spec:
   type: ClusterIP
   ports:
@@ -82,21 +109,4 @@ spec:
   selector:
     app: feature-toggle-service
     component: server
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ff-config
-data:
-  db-url: "jdbc:mysql://mysql-service:3306/feature_toggle?useSSL=false&serverTimezone=UTC"
-  redis-host: "redis-service"
-  environment: "prod"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: ff-secrets
-type: Opaque
-data:
-  db-username: cm9vdA==  # base64 encoded "root"
-  db-password: cm9vdA==  # base64 encoded "root"
+    environment: prod

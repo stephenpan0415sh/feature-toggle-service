@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>PercentageCalculator.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Java SDK</a> &gt; <a href="../index.html" class="el_bundle">ff-sdk-core</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.sdk.core.evaluator</a> &gt; <span class="el_source">PercentageCalculator.java</span></div><h1>PercentageCalculator.java</h1><pre class="source lang-java linenums">package com.featuretoggle.sdk.core.evaluator;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+/**
+ * Deterministic percentage calculator using SHA-256 hashing.
+ * Ensures the same user always gets the same result for a given percentage.
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+<span class="nc" id="L14">public class PercentageCalculator {</span>
+
+    /**
+     * Check if a user is within the specified percentage using deterministic hashing.
+     * 
+     * @param userId The user identifier to hash
+     * @param percentage The percentage (0-100)
+     * @return true if user is in the percentage rollout
+     */
+    public static boolean isInPercentage(String userId, int percentage) {
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        if (percentage &lt;= 0) {</span>
+<span class="fc" id="L25">            return false;</span>
+        }
+<span class="fc bfc" id="L27" title="All 2 branches covered.">        if (percentage &gt;= 100) {</span>
+<span class="fc" id="L28">            return true;</span>
+        }
+
+        // Calculate hash and normalize to 0-99
+<span class="fc" id="L32">        int hash = hash(userId);</span>
+<span class="fc" id="L33">        int bucket = Math.abs(hash % 100);</span>
+        
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        return bucket &lt; percentage;</span>
+    }
+
+    /**
+     * Generate a well-distributed hash value for the given string.
+     * Uses a combination of String.hashCode() and bit mixing for good distribution.
+     */
+    private static int hash(String input) {
+<span class="fc" id="L43">        int h = input.hashCode();</span>
+        // Apply bit mixing to improve distribution
+<span class="fc" id="L45">        h ^= (h &gt;&gt;&gt; 16);</span>
+<span class="fc" id="L46">        h *= 0x85ebca6b;</span>
+<span class="fc" id="L47">        h ^= (h &gt;&gt;&gt; 13);</span>
+<span class="fc" id="L48">        h *= 0xc2b2ae35;</span>
+<span class="fc" id="L49">        h ^= (h &gt;&gt;&gt; 16);</span>
+<span class="fc" id="L50">        return h;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

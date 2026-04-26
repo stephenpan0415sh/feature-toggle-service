@@ -265,4 +265,76 @@ class FlagCacheServiceTest {
         assertEquals("prod", stats.get("environment"));
         assertEquals(100L, stats.get("globalVersion"));
     }
+
+    @Test
+    void getCacheStats_shouldReturnZeroCount_whenNoFlags() {
+        // Given
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("app:flags:test-app:prod")).thenReturn(null);
+        when(valueOperations.get("app:version:test-app:prod")).thenReturn("50");
+
+        // When
+        Map<String, Object> stats = flagCacheService.getCacheStats("test-app", "prod");
+
+        // Then
+        assertNotNull(stats);
+        assertEquals(0, stats.get("cachedFlags"));
+    }
+
+    @Test
+    void getFlagVersion_shouldReturnVersion_whenExists() {
+        // Given
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("flag:version:test-app:prod:test-flag")).thenReturn("42");
+
+        // When
+        Long result = flagCacheService.getFlagVersion("test-app", "test-flag", "prod");
+
+        // Then
+        assertEquals(42L, result);
+    }
+
+    @Test
+    void getFlagVersion_shouldReturnNull_whenNotExists() {
+        // Given
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("flag:version:test-app:prod:test-flag")).thenReturn(null);
+
+        // When
+        Long result = flagCacheService.getFlagVersion("test-app", "test-flag", "prod");
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void getAllFlagVersions_shouldReturnEmptyMap_whenNoFlags() {
+        // Given
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("app:flags:test-app:prod")).thenReturn(null);
+
+        // When
+        Map<String, Long> result = flagCacheService.getAllFlagVersions("test-app", "prod");
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void saveNullToCache_shouldCacheNullMarker() {
+        // Given
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        // When
+        flagCacheService.saveNullToCache("test-app", "nonexistent-flag", "prod");
+
+        // Then
+        verify(valueOperations).set(
+            eq("flag:test-app:prod:nonexistent-flag"),
+            eq("__NULL__"),
+            eq(5L),
+            eq(TimeUnit.MINUTES)
+        );
+    }
 }

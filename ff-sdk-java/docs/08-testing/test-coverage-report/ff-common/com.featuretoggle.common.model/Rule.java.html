@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>Rule.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">Feature Toggle Java SDK</a> &gt; <a href="../index.html" class="el_bundle">ff-common</a> &gt; <a href="index.source.html" class="el_package">com.featuretoggle.common.model</a> &gt; <span class="el_source">Rule.java</span></div><h1>Rule.java</h1><pre class="source lang-java linenums">package com.featuretoggle.common.model;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+import java.util.List;
+
+/**
+ * Rule model for feature flag evaluation.
+ * Rules are evaluated in priority order (lower number = higher priority).
+ * 
+ * Example JSON structure:
+ * {
+ *   &quot;id&quot;: &quot;rule_001&quot;,
+ *   &quot;priority&quot;: 1,
+ *   &quot;type&quot;: &quot;TARGETING&quot;,
+ *   &quot;conditions&quot;: [
+ *     {&quot;attribute&quot;: &quot;uid&quot;, &quot;operator&quot;: &quot;in&quot;, &quot;values&quot;: [1001, 1002, 1003]},
+ *     {&quot;attribute&quot;: &quot;region&quot;, &quot;operator&quot;: &quot;eq&quot;, &quot;values&quot;: [&quot;cn-beijing&quot;]}
+ *   ],
+ *   &quot;actionValue&quot;: &quot;v2&quot;,
+ *   &quot;percentage&quot;: null,
+ *   &quot;hashAttribute&quot;: null,
+ *   &quot;description&quot;: &quot;VIP users in Beijing&quot;
+ * }
+ * 
+ * @author Feature Toggle Team
+ * @version 1.0.0
+ */
+<span class="nc bnc" id="L35" title="All 70 branches missed.">@Data</span>
+<span class="pc" id="L36">@Builder</span>
+<span class="nc" id="L37">@NoArgsConstructor</span>
+<span class="fc" id="L38">@AllArgsConstructor</span>
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class Rule implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Rule types
+     */
+<span class="fc" id="L47">    public enum RuleType {</span>
+        /**
+         * Kill switch - immediately disables the flag for all users
+         */
+<span class="fc" id="L51">        KILL_SWITCH,</span>
+
+        /**
+         * Whitelist - specific users always get the action value
+         */
+<span class="fc" id="L56">        WHITELIST,</span>
+
+        /**
+         * Blacklist - specific users always get default value
+         */
+<span class="fc" id="L61">        BLACKLIST,</span>
+
+        /**
+         * Targeting rules based on user attributes
+         */
+<span class="fc" id="L66">        TARGETING,</span>
+
+        /**
+         * Percentage rollout using deterministic hashing
+         */
+<span class="fc" id="L71">        PERCENTAGE_ROLLOUT</span>
+    }
+
+    /**
+     * Unique rule identifier
+     */
+<span class="fc" id="L77">    private String id;</span>
+
+    /**
+     * Priority (lower number = higher priority, evaluated first)
+     */
+<span class="fc" id="L82">    private Integer priority;</span>
+
+    /**
+     * Type of rule
+     */
+<span class="fc" id="L87">    private RuleType type;</span>
+
+    /**
+     * List of conditions that must be met (AND logic)
+     */
+<span class="fc" id="L92">    private List&lt;Condition&gt; conditions;</span>
+
+    /**
+     * Value to return when this rule matches
+     */
+<span class="fc" id="L97">    private String actionValue;</span>
+
+    /**
+     * Percentage for PERCENTAGE_ROLLOUT type (0-100)
+     */
+<span class="fc" id="L102">    private Integer percentage;</span>
+
+    /**
+     * User attribute to use for hashing (e.g., &quot;uid&quot;, &quot;email&quot;)
+     * Only used for PERCENTAGE_ROLLOUT type
+     */
+<span class="fc" id="L108">    private String hashAttribute;</span>
+
+    /**
+     * Human-readable description for explainability
+     */
+<span class="nc" id="L113">    private String description;</span>
+
+    /**
+     * Check if this is a kill switch rule
+     */
+    @JsonProperty(&quot;isKillSwitch&quot;)
+    public boolean isKillSwitch() {
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        return type == RuleType.KILL_SWITCH;</span>
+    }
+
+    /**
+     * Check if this is a percentage rollout rule
+     */
+    @JsonProperty(&quot;isPercentageRollout&quot;)
+    public boolean isPercentageRollout() {
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        return type == RuleType.PERCENTAGE_ROLLOUT;</span>
+    }
+
+    /**
+     * Validate rule configuration
+     */
+    public void validate() {
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">        if (type == null) {</span>
+<span class="nc" id="L136">            throw new IllegalArgumentException(&quot;Rule type cannot be null&quot;);</span>
+        }
+
+<span class="pc bpc" id="L139" title="2 of 4 branches missed.">        if (priority == null || priority &lt; 0) {</span>
+<span class="nc" id="L140">            throw new IllegalArgumentException(&quot;Rule priority must be non-negative&quot;);</span>
+        }
+
+<span class="fc bfc" id="L143" title="All 2 branches covered.">        if (type == RuleType.PERCENTAGE_ROLLOUT) {</span>
+<span class="pc bpc" id="L144" title="3 of 6 branches missed.">            if (percentage == null || percentage &lt; 0 || percentage &gt; 100) {</span>
+<span class="nc" id="L145">                throw new IllegalArgumentException(&quot;Percentage must be between 0 and 100&quot;);</span>
+            }
+<span class="pc bpc" id="L147" title="2 of 4 branches missed.">            if (hashAttribute == null || hashAttribute.isEmpty()) {</span>
+<span class="nc" id="L148">                throw new IllegalArgumentException(&quot;Hash attribute is required for percentage rollout&quot;);</span>
+            }
+        }
+
+<span class="pc bpc" id="L152" title="2 of 4 branches missed.">        if (actionValue == null || actionValue.isEmpty()) {</span>
+<span class="nc" id="L153">            throw new IllegalArgumentException(&quot;Action value cannot be empty&quot;);</span>
+        }
+<span class="fc" id="L155">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

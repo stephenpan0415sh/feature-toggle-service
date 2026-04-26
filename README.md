@@ -106,13 +106,14 @@ open http://localhost:8080/swagger-ui.html
 
 ---
 
-## 🎓 Interview Preparation
+## 📚 Project Documentation
 
-Reviewing for an interview? Start here:
+For a deeper understanding of the system design and implementation:
 
-1. [Interview Preparation Guide](INTERVIEW_PREPARATION.md)
-2. [Key Highlights](docs/09-project-status/completion-summary.md)
-3. [Demo Script](QUICK_START.md#demo-script)
+- [System Architecture & Design](docs/02-architecture/overview.md)
+- [API Reference (Admin & Client)](docs/04-api-guide/admin-api.md)
+- [SDK Integration Guide](docs/05-sdk-guide/sdk-integration-guide.md)
+- [Data Model & Schema](docs/03-data-model/data-model.md)
 
 ---
 

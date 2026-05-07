@@ -14,7 +14,7 @@ import java.lang.annotation.*;
  *     flagKey = "new_checkout",
  *     defaultValue = "false",
  *     rules = {
- *         &#64;Rule(type = RuleType.TARGETING, priority = 1, actionValue = "true",
+ *         &#64;Rule(type = RuleType.TARGETING, priority = 1, ruleDefaultEnabled = true,
  *             conditions = &#64;Condition(attribute = "uid", operator = Condition.Operator.IN, values = {"123"}))
  *     }
  * )

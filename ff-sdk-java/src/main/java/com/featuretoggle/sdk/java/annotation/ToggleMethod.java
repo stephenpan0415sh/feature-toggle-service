@@ -8,13 +8,22 @@ import java.lang.annotation.*;
  * 
  * Usage:
  * <pre>
- * &#64;ToggleMethod(flagKey = "new_checkout", fallbackMethod = "checkoutFallback")
- * public CheckoutResult checkout(UserContext user) {
+ * &#64;ToggleMethod(
+ *     flagKey = "new_checkout",
+ *     prepareContextMethod = "prepareUserContext",
+ *     fallbackMethod = "checkoutFallback"
+ * )
+ * public CheckoutResult checkout(String orderId, int amount) {
  *     // New feature logic
  * }
  * 
- * // Fallback method in the same class
- * public CheckoutResult checkoutFallback(UserContext user) {
+ * // Prepare UserContext - must have same parameters as original method
+ * private UserContext prepareUserContext(String orderId, int amount) {
+ *     return new UserContext(getCurrentUserId(), Map.of("orderId", orderId));
+ * }
+ * 
+ * // Fallback method - must have same parameters as original method
+ * public CheckoutResult checkoutFallback(String orderId, int amount) {
  *     // Legacy logic when flag is disabled
  * }
  * </pre>
@@ -28,6 +37,15 @@ public @interface ToggleMethod {
      * Flag key to evaluate
      */
     String flagKey();
+    
+    /**
+     * Method name to prepare UserContext from original method parameters.
+     * The method must be declared in the same class and return UserContext.
+     * If not specified, an empty UserContext will be used.
+     * 
+     * @return method name, empty string means use empty UserContext
+     */
+    String prepareContextMethod() default "";
     
     /**
      * Fallback method name to execute when flag is disabled.

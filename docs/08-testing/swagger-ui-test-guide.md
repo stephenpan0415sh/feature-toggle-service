@@ -22,38 +22,38 @@
 
 ---
 
-## Step 1: Create App and All Test Flags via SDK Registration API
+## Step 1: Create All Test Flags via Admin API
 
-**Note**: ClientRegisterController auto-creates apps if they don't exist. No manual database insertion needed.
+**Note**: Apps are auto-created on first flag registration. No manual setup needed.
 
-Call `POST /api/client/register` to register the following 5 flags:
+**API**: `POST /api/admin/flags?appKey=prod`
+
+**Request Body Format**: Direct FeatureFlag object (no wrapper)
+
+Create the following 6 flags:
 
 ### 1.1 EQ Condition - enable_premium_feature
 
 ```json
 {
-  "appKey": "prod",
-  "environment": "prod",
-  "flag": {
-    "flagKey": "enable_premium_feature",
-    "name": "Enable Premium Feature",
-    "defaultValue": "false",
-    "rules": [
-      {
-        "priority": 1,
-        "type": "TARGETING",
-        "conditions": [
-          {
-            "attribute": "vipLevel",
-            "operator": "EQ",
-            "values": [5]
-          }
-        ],
-        "actionValue": "true"
-      }
-    ]
-  },
-  "skipPublish": true
+  "flagKey": "enable_premium_feature",
+  "name": "Enable Premium Feature",
+  "defaultValue": "false",
+  "status": 1,
+  "rules": [
+    {
+      "priority": 1,
+      "type": "TARGETING",
+      "conditions": [
+        {
+          "attribute": "vipLevel",
+          "operator": "EQ",
+          "values": [5]
+        }
+      ],
+      "ruleDefaultEnabled": true
+    }
+  ]
 }
 ```
 
@@ -61,28 +61,24 @@ Call `POST /api/client/register` to register the following 5 flags:
 
 ```json
 {
-  "appKey": "prod",
-  "environment": "prod",
-  "flag": {
-    "flagKey": "enable_regional_promo",
-    "name": "Enable Regional Promotion",
-    "defaultValue": "false",
-    "rules": [
-      {
-        "priority": 1,
-        "type": "TARGETING",
-        "conditions": [
-          {
-            "attribute": "region",
-            "operator": "IN",
-            "values": ["cn-east", "cn-south"]
-          }
-        ],
-        "actionValue": "true"
-      }
-    ]
-  },
-  "skipPublish": true
+  "flagKey": "enable_regional_promo",
+  "name": "Enable Regional Promotion",
+  "defaultValue": "false",
+  "status": 1,
+  "rules": [
+    {
+      "priority": 1,
+      "type": "TARGETING",
+      "conditions": [
+        {
+          "attribute": "region",
+          "operator": "IN",
+          "values": ["cn-east", "cn-south"]
+        }
+      ],
+      "ruleDefaultEnabled": true
+    }
+  ]
 }
 ```
 
@@ -90,28 +86,24 @@ Call `POST /api/client/register` to register the following 5 flags:
 
 ```json
 {
-  "appKey": "prod",
-  "environment": "prod",
-  "flag": {
-    "flagKey": "enable_high_value_discount",
-    "name": "Enable High Value Discount",
-    "defaultValue": "false",
-    "rules": [
-      {
-        "priority": 1,
-        "type": "TARGETING",
-        "conditions": [
-          {
-            "attribute": "totalSpent",
-            "operator": "GTE",
-            "values": [1000]
-          }
-        ],
-        "actionValue": "true"
-      }
-    ]
-  },
-  "skipPublish": true
+  "flagKey": "enable_high_value_discount",
+  "name": "Enable High Value Discount",
+  "defaultValue": "false",
+  "status": 1,
+  "rules": [
+    {
+      "priority": 1,
+      "type": "TARGETING",
+      "conditions": [
+        {
+          "attribute": "totalSpent",
+          "operator": "GTE",
+          "values": [1000]
+        }
+      ],
+      "ruleDefaultEnabled": true
+    }
+  ]
 }
 ```
 
@@ -119,28 +111,24 @@ Call `POST /api/client/register` to register the following 5 flags:
 
 ```json
 {
-  "appKey": "prod",
-  "environment": "prod",
-  "flag": {
-    "flagKey": "enable_new_user_bonus",
-    "name": "Enable New User Bonus",
-    "defaultValue": "false",
-    "rules": [
-      {
-        "priority": 1,
-        "type": "TARGETING",
-        "conditions": [
-          {
-            "attribute": "orderCount",
-            "operator": "LTE",
-            "values": [3]
-          }
-        ],
-        "actionValue": "true"
-      }
-    ]
-  },
-  "skipPublish": true
+  "flagKey": "enable_new_user_bonus",
+  "name": "Enable New User Bonus",
+  "defaultValue": "false",
+  "status": 1,
+  "rules": [
+    {
+      "priority": 1,
+      "type": "TARGETING",
+      "conditions": [
+        {
+          "attribute": "orderCount",
+          "operator": "LTE",
+          "values": [3]
+        }
+      ],
+      "ruleDefaultEnabled": true
+    }
+  ]
 }
 ```
 
@@ -148,44 +136,84 @@ Call `POST /api/client/register` to register the following 5 flags:
 
 ```json
 {
-  "appKey": "prod",
-  "environment": "prod",
-  "flag": {
-    "flagKey": "enable_mobile_app_feature",
-    "name": "Enable Mobile App Feature",
-    "defaultValue": "false",
-    "rules": [
-      {
-        "priority": 1,
-        "type": "TARGETING",
-        "conditions": [
-          {
-            "attribute": "deviceType",
-            "operator": "CONTAINS",
-            "values": ["mobile"]
-          }
-        ],
-        "actionValue": "true"
-      }
-    ]
-  },
-  "skipPublish": true
+  "flagKey": "enable_mobile_app_feature",
+  "name": "Enable Mobile App Feature",
+  "defaultValue": "false",
+  "status": 1,
+  "rules": [
+    {
+      "priority": 1,
+      "type": "TARGETING",
+      "conditions": [
+        {
+          "attribute": "deviceType",
+          "operator": "CONTAINS",
+          "values": ["mobile"]
+        }
+      ],
+      "ruleDefaultEnabled": true
+    }
+  ]
 }
 ```
 
-**Expected Response** (for each registration):
+### 1.6 BLACKLIST Example - enable_china_feature_with_blacklist
+
+This flag is enabled for users in China, but user123 is blacklisted.
+
+```json
+{
+  "flagKey": "enable_china_feature_with_blacklist",
+  "name": "China Feature with Blacklist",
+  "defaultValue": "false",
+  "status": 1,
+  "rules": [
+    {
+      "priority": 1,
+      "type": "BLACKLIST",
+      "conditions": [
+        {
+          "attribute": "uid",
+          "operator": "IN",
+          "values": ["user123", "user456"]
+        }
+      ],
+      "ruleDefaultEnabled": false,
+      "description": "Blacklist specific users even if they match targeting rules"
+    },
+    {
+      "priority": 2,
+      "type": "TARGETING",
+      "conditions": [
+        {
+          "attribute": "region",
+          "operator": "EQ",
+          "values": ["cn-east", "cn-south", "cn-north"]
+        }
+      ],
+      "ruleDefaultEnabled": true,
+      "description": "Enable for all users in China"
+    }
+  ]
+}
+```
+
+**Expected Response** (for each flag creation):
 ```json
 {
   "success": true,
-  "message": "Flag registered successfully",
-  "action": "created",
-  "version": 1
+  "data": {
+    "flagKey": "enable_premium_feature",
+    "name": "Enable Premium Feature",
+    "version": 1
+  },
+  "message": "Flag created successfully"
 }
 ```
 
 ---
 
-## Step 1.6: Verify All Flags Registered
+## Step 1.7: Verify All Flags Registered
 
 **API**: `GET /api/admin/flags`
 
@@ -202,13 +230,14 @@ Call `POST /api/client/register` to register the following 5 flags:
     {"flagKey": "enable_regional_promo", "version": 1},
     {"flagKey": "enable_high_value_discount", "version": 1},
     {"flagKey": "enable_new_user_bonus", "version": 1},
-    {"flagKey": "enable_mobile_app_feature", "version": 1}
+    {"flagKey": "enable_mobile_app_feature", "version": 1},
+    {"flagKey": "enable_china_feature_with_blacklist", "version": 1}
   ],
-  "total": 5
+  "total": 6
 }
 ```
 
-**Note**: Verify all 5 flags are present before proceeding.
+**Note**: Verify all 6 flags are present before proceeding.
 
 ---
 
@@ -400,6 +429,58 @@ Call `POST /api/client/register` to register the following 5 flags:
 
 ---
 
+### 2.6 Test BLACKLIST + TARGETING Combination
+
+This test demonstrates priority-based rule evaluation where blacklist takes precedence.
+
+**API**: `POST /api/client/evaluate`
+
+**Test Case 1 - Blacklisted User in China (should be disabled)**:
+```json
+{
+  "appKey": "prod",
+  "userId": "user123",
+  "flagKeys": ["enable_china_feature_with_blacklist"],
+  "attributes": {
+    "uid": "user123",
+    "region": "cn-east"
+  }
+}
+```
+**Expected**: `enabled: false, reason: "BLACKLIST", matchedRuleId: <blacklist_rule_id>`
+
+**Explanation**: Even though user123 is in China (matches targeting rule), the BLACKLIST rule has higher priority (priority=1) and excludes this user.
+
+**Test Case 2 - Normal User in China (should be enabled)**:
+```json
+{
+  "appKey": "prod",
+  "userId": "user789",
+  "flagKeys": ["enable_china_feature_with_blacklist"],
+  "attributes": {
+    "uid": "user789",
+    "region": "cn-east"
+  }
+}
+```
+**Expected**: `enabled: true, reason: "MATCHED_RULE", matchedRuleId: <targeting_rule_id>`
+
+**Test Case 3 - User Not in China (should use default)**:
+```json
+{
+  "appKey": "prod",
+  "userId": "user_us",
+  "flagKeys": ["enable_china_feature_with_blacklist"],
+  "attributes": {
+    "uid": "user_us",
+    "region": "us-west"
+  }
+}
+```
+**Expected**: `enabled: false, reason: "DEFAULT"`
+
+---
+
 ## Step 3: Batch Evaluation Test
 
 **API**: `POST /api/client/evaluate`
@@ -461,13 +542,13 @@ Call `POST /api/client/register` to register the following 5 flags:
 
 ### 4.1 Update Flag Rule
 
-**API**: `PUT /api/admin/flags`
+**API**: `PUT /api/admin/flags/{flagKey}`
 
-**Query Parameters**:
-- `appKey`: `prod`
-- `flagKey`: `enable_premium_feature`
+**Path Parameters**:
+- `appKey` (query): `prod`
+- `flagKey` (path): `enable_premium_feature`
 
-**Request Body**:
+**Request Body** (FeatureFlag object only - no appKey/environment wrapper):
 ```json
 {
   "flagKey": "enable_premium_feature",
@@ -485,7 +566,7 @@ Call `POST /api/client/register` to register the following 5 flags:
           "values": [5]
         }
       ],
-      "actionValue": "true"
+      "ruleDefaultEnabled": true
     }
   ]
 }
@@ -697,7 +778,6 @@ After Step 4 update, perform incremental sync:
     "enable_new_user_bonus": {
       "flagKey": "enable_new_user_bonus",
       "enabled": false,
-      "value": "false",
       "reason": "DEFAULT"
     }
   }

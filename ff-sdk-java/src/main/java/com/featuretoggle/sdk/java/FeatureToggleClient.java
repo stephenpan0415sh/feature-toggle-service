@@ -3,6 +3,7 @@ package com.featuretoggle.sdk.java;
 import com.featuretoggle.common.model.EvaluationDetail;
 import com.featuretoggle.common.model.FeatureFlag;
 import com.featuretoggle.common.model.UserContext;
+import com.featuretoggle.common.model.BuiltInRuleId;
 import com.featuretoggle.sdk.core.evaluator.RuleEvaluator;
 import com.featuretoggle.sdk.java.config.SdkProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -202,15 +203,14 @@ public class FeatureToggleClient {
             return new EvaluationDetail(
                 flagKey,
                 false,
-                "false",
                 EvaluationDetail.EvaluationReason.DEFAULT,
-                null,  // matchedRuleId
+                EvaluationDetail.EvaluationReason.DEFAULT.getRuleId(),  // matchedRuleId
                 java.util.UUID.randomUUID().toString(),  // traceId
                 properties.getEnvironment(),
-                userContext.getStringAttribute("region"),  // region from user context
+                userContext != null ? userContext.getStringAttribute("region") : null,  // region from user context
                 null,  // releaseVersion (unknown when flag not found)
                 System.currentTimeMillis(),
-                userContext.attributes(),  // userContextSnapshot
+                userContext != null ? userContext.attributes() : Map.of(),  // userContextSnapshot
                 null   // matchedConditions
             );
         }

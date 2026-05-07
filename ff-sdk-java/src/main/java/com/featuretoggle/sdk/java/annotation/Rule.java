@@ -27,9 +27,9 @@ public @interface Rule {
     RuleType type();
     
     /**
-     * Value to return when this rule matches
+     * Default enabled state when this rule matches
      */
-    String actionValue();
+    boolean ruleDefaultEnabled();
     
     /**
      * Percentage for PERCENTAGE_ROLLOUT type (0-100)

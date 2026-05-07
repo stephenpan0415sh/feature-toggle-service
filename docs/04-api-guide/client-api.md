@@ -29,9 +29,8 @@ Evaluates a specific feature flag for a given user context. Returns detailed exp
   "success": true,
   "data": {
     "enabled": true,
-    "value": "true",
-    "reason": "RULE_MATCH",
-    "matchedRuleId": "rule_123",
+    "reason": "MATCHED_RULE",
+    "matchedRuleId": 123,
     "traceId": "trace_abc"
   }
 }

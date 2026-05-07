@@ -16,8 +16,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -60,9 +59,7 @@ class FeatureToggleAspectTest {
         when(toggleMethod.defaultValue()).thenReturn("false");
         when(joinPoint.getSignature()).thenReturn(methodSignature);
         when(methodSignature.getMethod()).thenReturn(TestService.class.getMethod("enabledMethod", UserContext.class));
-        when(joinPoint.getArgs()).thenReturn(args);
-        when(methodSignature.getParameterTypes()).thenReturn(parameterTypes);
-        when(featureToggleClient.isEnabled(eq("test-flag"), any(UserContext.class))).thenReturn(true);
+        when(featureToggleClient.isEnabled(eq("test-flag"), nullable(UserContext.class))).thenReturn(true);
         when(joinPoint.proceed()).thenReturn("original-result");
 
         // When
@@ -82,9 +79,7 @@ class FeatureToggleAspectTest {
         when(toggleMethod.defaultValue()).thenReturn("true");
         when(joinPoint.getSignature()).thenReturn(methodSignature);
         when(methodSignature.getMethod()).thenReturn(TestService.class.getMethod("enabledMethod", UserContext.class));
-        when(joinPoint.getArgs()).thenReturn(args);
-        when(methodSignature.getParameterTypes()).thenReturn(parameterTypes);
-        when(featureToggleClient.isEnabled(eq("test-flag"), any(UserContext.class))).thenReturn(false);
+        when(featureToggleClient.isEnabled(eq("test-flag"), nullable(UserContext.class))).thenReturn(false);
 
         // When
         Object result = aspect.evaluateToggle(joinPoint, toggleMethod);
@@ -103,9 +98,8 @@ class FeatureToggleAspectTest {
         when(joinPoint.getSignature()).thenReturn(methodSignature);
         when(methodSignature.getMethod()).thenReturn(TestService.class.getMethod("enabledMethod", UserContext.class));
         when(joinPoint.getArgs()).thenReturn(args);
-        when(methodSignature.getParameterTypes()).thenReturn(parameterTypes);
         when(joinPoint.getTarget()).thenReturn(testService);
-        when(featureToggleClient.isEnabled(eq("test-flag"), any(UserContext.class))).thenReturn(false);
+        when(featureToggleClient.isEnabled(eq("test-flag"), nullable(UserContext.class))).thenReturn(false);
 
         // When
         Object result = aspect.evaluateToggle(joinPoint, toggleMethod);
@@ -119,18 +113,20 @@ class FeatureToggleAspectTest {
     void evaluateToggle_shouldProceed_whenNoUserContext() throws Throwable {
         // Given
         when(toggleMethod.flagKey()).thenReturn("test-flag");
+        when(toggleMethod.fallbackMethod()).thenReturn("");
+        when(toggleMethod.defaultValue()).thenReturn("false");
         when(joinPoint.getSignature()).thenReturn(methodSignature);
         when(methodSignature.getMethod()).thenReturn(TestService.class.getMethod("enabledMethod", UserContext.class));
-        when(joinPoint.getArgs()).thenReturn(new Object[]{"not-a-user-context"});
-        when(methodSignature.getParameterTypes()).thenReturn(new Class<?>[]{String.class});
         when(joinPoint.proceed()).thenReturn("proceeded");
+        when(featureToggleClient.isEnabled(eq("test-flag"), nullable(UserContext.class))).thenReturn(true);
 
         // When
         Object result = aspect.evaluateToggle(joinPoint, toggleMethod);
 
-        // Then
+        // Then - isEnabled is called with null userContext and returns true, so proceed
         assertEquals("proceeded", result);
-        verify(featureToggleClient, never()).isEnabled(any(), any());
+        verify(featureToggleClient, times(1)).isEnabled(eq("test-flag"), nullable(UserContext.class));
+        verify(joinPoint, times(1)).proceed();
     }
 
     @Test

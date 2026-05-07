@@ -29,7 +29,7 @@ public class SharedFlagsConfig {
                 Rule.builder()
                     .priority(1)
                     .type(Rule.RuleType.TARGETING)
-                    .actionValue("60000")
+                    .ruleDefaultEnabled(true)
                     .conditions(List.of(
                         new Condition("region", Condition.Operator.IN, List.of("beijing"))
                     ))

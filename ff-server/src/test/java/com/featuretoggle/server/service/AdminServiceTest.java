@@ -88,7 +88,7 @@ class AdminServiceTest {
             .rules(List.of(
                 Rule.builder()
                     .priority(1)
-                    .actionValue("true")
+                    .ruleDefaultEnabled(true)
                     .build()
             ))
             .build();

@@ -105,7 +105,6 @@ class FeatureToggleClientTest {
         
         // Then
         assertFalse(detail.enabled());
-        assertEquals("false", detail.value());
         assertEquals(EvaluationDetail.EvaluationReason.DEFAULT, detail.reason());
         assertEquals("nonexistent_flag", detail.flagKey());
     }
@@ -120,10 +119,10 @@ class FeatureToggleClientTest {
             .status(1)
             .rules(List.of(
                 Rule.builder()
-                    .id("rule_1")
+                    .id("101")
                     .priority(1)
                     .type(Rule.RuleType.TARGETING)
-                    .actionValue("true")
+                    .ruleDefaultEnabled(true)
                     .conditions(List.of(
                         new Condition("region", Condition.Operator.EQ, List.of("cn-east"))
                     ))
@@ -139,7 +138,6 @@ class FeatureToggleClientTest {
         
         // Then
         assertTrue(detail.enabled());
-        assertEquals("true", detail.value());
         assertEquals(EvaluationDetail.EvaluationReason.MATCHED_RULE, detail.reason());
     }
     

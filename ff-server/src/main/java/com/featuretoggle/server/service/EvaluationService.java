@@ -4,6 +4,7 @@ import com.featuretoggle.common.model.EvaluationDetail;
 import com.featuretoggle.common.model.FeatureFlag;
 import com.featuretoggle.common.model.Rule;
 import com.featuretoggle.common.model.UserContext;
+import com.featuretoggle.common.model.BuiltInRuleId;
 import com.featuretoggle.sdk.core.evaluator.RuleEvaluator;
 import com.featuretoggle.server.entity.App;
 import com.featuretoggle.server.entity.FeatureFlagEntity;
@@ -41,6 +42,11 @@ public class EvaluationService {
     private final FlagCacheService flagCacheService;
     private final com.featuretoggle.server.config.MetricsCollector metricsCollector;
     private final RuleEvaluator ruleEvaluator = new RuleEvaluator();
+    
+    // In-memory lock map to prevent cache breakdown (per-JVM, not distributed)
+    // Key: flag cache key, Value: loading future
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.CompletableFuture<FeatureFlag>> loadingFlags = 
+        new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Evaluate a single feature flag
@@ -53,26 +59,45 @@ public class EvaluationService {
             // Try Redis cache first
             FeatureFlag flag = flagCacheService.getFromCache(appKey, flagKey, environment);
             
-            // Check if we have a cached value (including null marker)
-            boolean hasCache = flagCacheService.hasFlagInCache(appKey, flagKey, environment);
-            
-            if (!hasCache) {
-                // Cache miss, load from database
-                metricsCollector.recordCacheMiss(appKey, environment);
-                flag = loadFlagWithRules(appKey, flagKey, environment);
+            if (flag == null) {
+                // Cache miss or cached null - use single-flight pattern to prevent cache breakdown
+                String cacheKey = appKey + ":" + environment + ":" + flagKey;
                 
-                if (flag != null) {
-                    // Save to cache
-                    flagCacheService.saveToCache(appKey, flag, environment);
-                } else {
-                    // Flag doesn't exist - cache null to prevent cache penetration
-                    flagCacheService.saveNullToCache(appKey, flagKey, environment);
+                // Try to get or create a loading future
+                java.util.concurrent.CompletableFuture<FeatureFlag> loadingFuture = loadingFlags.computeIfAbsent(cacheKey, k -> {
+                    // Only one thread will execute this
+                    return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                        try {
+                            metricsCollector.recordCacheMiss(appKey, environment);
+                            FeatureFlag loadedFlag = loadFlagWithRules(appKey, flagKey, environment);
+                            
+                            if (loadedFlag != null) {
+                                flagCacheService.saveToCache(appKey, loadedFlag, environment);
+                            } else {
+                                flagCacheService.saveNullToCache(appKey, flagKey, environment);
+                            }
+                            
+                            return loadedFlag;
+                        } catch (Exception e) {
+                            log.error("Error loading flag from database", e);
+                            throw new RuntimeException(e);
+                        } finally {
+                            // Remove from loading map after completion
+                            loadingFlags.remove(cacheKey);
+                        }
+                    });
+                });
+                
+                // Wait for the loading to complete
+                try {
+                    flag = loadingFuture.get();
+                    metricsCollector.recordCacheHit(appKey, environment);
+                } catch (Exception e) {
+                    log.error("Error waiting for flag loading", e);
+                    return buildErrorDetail(flagKey, environment);
                 }
-            } else if (flag == null) {
-                // Cached null value - flag doesn't exist
-                log.debug("Using cached null value for flag: {}", flagKey);
-                metricsCollector.recordCacheHit(appKey, environment);
             } else {
+                // Cache hit with valid flag
                 metricsCollector.recordCacheHit(appKey, environment);
             }
             
@@ -84,25 +109,9 @@ public class EvaluationService {
             // Evaluate
             EvaluationDetail detail = ruleEvaluator.evaluate(flag, userContext);
             
-            // Enrich with releaseVersion from FeatureFlag
-            EvaluationDetail enrichedDetail = new EvaluationDetail(
-                detail.flagKey(),
-                detail.enabled(),
-                detail.value(),
-                detail.reason(),
-                detail.matchedRuleId(),
-                detail.traceId(),
-                detail.environment(),
-                detail.region(),
-                flag.getReleaseVersion(),  // Get from FeatureFlag
-                detail.evaluatedAt(),
-                detail.userContextSnapshot(),
-                detail.matchedConditions()
-            );
-            
-            success = enrichedDetail.isSuccess();
-            return enrichedDetail;
-            
+            success = detail.isSuccess();
+            return detail;
+
         } catch (Exception e) {
             log.error("Error evaluating flag: {}", flagKey, e);
             return buildErrorDetail(flagKey, environment);
@@ -335,9 +344,9 @@ public class EvaluationService {
             List<Rule> rules = new ArrayList<>();
             for (FlagRuleEntity ruleEntity : ruleEntities) {
                 Rule rule = objectMapper.readValue(ruleEntity.getConditions(), Rule.class);
-                rule.setId("rule_" + ruleEntity.getId());
+                rule.setId(String.valueOf(ruleEntity.getId()));
                 rule.setPriority(ruleEntity.getPriority());
-                rule.setActionValue(ruleEntity.getActionValue());
+                rule.setRuleDefaultEnabled(ruleEntity.getRuleDefaultEnabled());
                 rule.setDescription(ruleEntity.getDescription());
                 
                 // Set default type to TARGETING if not specified
@@ -379,9 +388,8 @@ public class EvaluationService {
         return new EvaluationDetail(
             flagKey,
             false,
-            "false",
             EvaluationDetail.EvaluationReason.DEFAULT,
-            null,
+            BuiltInRuleId.DEFAULT_FALLBACK.getId(),
             java.util.UUID.randomUUID().toString(),
             environment,
             null,  // region
@@ -399,9 +407,8 @@ public class EvaluationService {
         return new EvaluationDetail(
             flagKey,
             false,
-            "false",
             EvaluationDetail.EvaluationReason.ERROR,
-            null,
+            BuiltInRuleId.ERROR_FALLBACK.getId(),
             java.util.UUID.randomUUID().toString(),
             environment,
             null,  // region

@@ -79,7 +79,7 @@ public class AdminService {
                         .flagId(flagEntity.getId())
                         .priority(priority++)
                         .conditions(objectMapper.writeValueAsString(rule))
-                        .actionValue(rule.getActionValue())
+                        .ruleDefaultEnabled(rule.getRuleDefaultEnabled())
                         .description("")
                         .build();
                     
@@ -133,7 +133,7 @@ public class AdminService {
                         .flagId(flagEntity.getId())
                         .priority(priority++)
                         .conditions(objectMapper.writeValueAsString(rule))
-                        .actionValue(rule.getActionValue())
+                        .ruleDefaultEnabled(rule.getRuleDefaultEnabled())
                         .description("")
                         .build();
                     
@@ -271,7 +271,7 @@ public class AdminService {
                 Rule rule = objectMapper.readValue(ruleEntity.getConditions(), Rule.class);
                 rule.setId("rule_" + ruleEntity.getId());
                 rule.setPriority(ruleEntity.getPriority());
-                rule.setActionValue(ruleEntity.getActionValue());
+                rule.setRuleDefaultEnabled(ruleEntity.getRuleDefaultEnabled());
                 rule.setDescription(ruleEntity.getDescription());
                 rules.add(rule);
             }

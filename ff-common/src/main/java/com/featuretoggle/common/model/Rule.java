@@ -23,7 +23,7 @@ import java.util.List;
  *     {"attribute": "uid", "operator": "in", "values": [1001, 1002, 1003]},
  *     {"attribute": "region", "operator": "eq", "values": ["cn-beijing"]}
  *   ],
- *   "actionValue": "v2",
+ *   "actionEnabled": true,
  *   "percentage": null,
  *   "hashAttribute": null,
  *   "description": "VIP users in Beijing"
@@ -92,9 +92,9 @@ public class Rule implements Serializable {
     private List<Condition> conditions;
 
     /**
-     * Value to return when this rule matches
+     * Default enabled state when this rule matches
      */
-    private String actionValue;
+    private Boolean ruleDefaultEnabled;
 
     /**
      * Percentage for PERCENTAGE_ROLLOUT type (0-100)
@@ -149,8 +149,8 @@ public class Rule implements Serializable {
             }
         }
 
-        if (actionValue == null || actionValue.isEmpty()) {
-            throw new IllegalArgumentException("Action value cannot be empty");
+        if (ruleDefaultEnabled == null) {
+            throw new IllegalArgumentException("Rule default enabled cannot be null");
         }
     }
 }

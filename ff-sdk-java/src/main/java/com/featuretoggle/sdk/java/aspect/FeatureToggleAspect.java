@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 
 /**
  * AOP Aspect for intercepting @ToggleMethod annotated methods.
@@ -30,23 +31,29 @@ public class FeatureToggleAspect {
     @Around("@annotation(toggleMethod)")
     public Object evaluateToggle(ProceedingJoinPoint joinPoint, ToggleMethod toggleMethod) throws Throwable {
         String flagKey = toggleMethod.flagKey();
+        String prepareContextMethodName = toggleMethod.prepareContextMethod();
         String fallbackMethodName = toggleMethod.fallbackMethod();
         String defaultValue = toggleMethod.defaultValue();
         
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
         
-        // Extract UserContext from method parameters
-        UserContext userContext = extractUserContext(joinPoint.getArgs(), signature.getParameterTypes());
+        // Extract UserContext
+        UserContext userContext = null;
         
-        if (userContext == null) {
-            log.warn("No UserContext found in method parameters for flag: {}, proceeding with original method", flagKey);
-            return joinPoint.proceed();
+        // Try prepareContextMethod if configured
+        if (prepareContextMethodName != null && !prepareContextMethodName.isEmpty()) {
+            userContext = prepareUserContext(joinPoint.getTarget(), prepareContextMethodName, 
+                joinPoint.getArgs(), method.getParameterTypes());
         }
+        
+        // Evaluate flag (RuleEvaluator will handle null userContext)
         
         // Evaluate flag
         boolean enabled = featureToggleClient.isEnabled(flagKey, userContext);
-        log.debug("Flag {} evaluated: {} for user {}", flagKey, enabled, userContext.userId());
+
+        log.debug("Flag {} evaluated: {} for user {}", flagKey, enabled, 
+            userContext != null ? userContext.userId() : "unknown");
         
         if (enabled) {
             // Flag enabled, execute original method
@@ -61,6 +68,43 @@ public class FeatureToggleAspect {
                 return parseDefaultValue(defaultValue, method.getReturnType());
             }
         }
+    }
+    
+    /**
+     * Prepare UserContext by calling the specified method
+     */
+    private UserContext prepareUserContext(Object target, String methodName, 
+                                           Object[] args, Class<?>[] paramTypes) {
+        try {
+            Method prepareMethod = findPrepareContextMethod(target.getClass(), methodName);
+            if (prepareMethod == null) {
+                log.error("Prepare context method '{}' not found", methodName);
+                return null;
+            }
+            
+            Object result = prepareMethod.invoke(target, args);
+            if (result instanceof UserContext) {
+                return (UserContext) result;
+            } else {
+                log.error("Prepare context method '{}' did not return UserContext", methodName);
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("Error executing prepare context method '{}'", methodName, e);
+            return null;
+        }
+    }
+    
+    /**
+     * Find prepare context method by name
+     */
+    private Method findPrepareContextMethod(Class<?> clazz, String methodName) {
+        for (Method method : clazz.getDeclaredMethods()) {
+            if (method.getName().equals(methodName)) {
+                return method;
+            }
+        }
+        return null;
     }
     
     /**
@@ -111,10 +155,11 @@ public class FeatureToggleAspect {
      * Find fallback method by name with compatible parameter types
      */
     private Method findFallbackMethod(Class<?> clazz, String methodName, Object[] args) {
+        int argLength = args != null ? args.length : 0;
         for (Method method : clazz.getDeclaredMethods()) {
             if (method.getName().equals(methodName)) {
                 // Check parameter count and types compatibility
-                if (method.getParameterCount() == args.length) {
+                if (method.getParameterCount() == argLength) {
                     return method;
                 }
             }

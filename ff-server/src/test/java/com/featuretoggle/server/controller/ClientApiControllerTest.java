@@ -53,7 +53,7 @@ class ClientApiControllerTest {
     void evaluateFlag_shouldReturnSuccess() throws Exception {
         // Given
         EvaluationDetail detail = new EvaluationDetail(
-            "test-flag", true, "true",
+            "test-flag", true,
             EvaluationDetail.EvaluationReason.DEFAULT,
             null, "trace-123", "prod", null, "v1.0",
             System.currentTimeMillis(), null, null
@@ -80,7 +80,7 @@ class ClientApiControllerTest {
         );
 
         EvaluationDetail detail = new EvaluationDetail(
-            "flag1", true, "true",
+            "flag1", true,
             EvaluationDetail.EvaluationReason.DEFAULT,
             null, "trace-123", "prod", null, "v1.0",
             System.currentTimeMillis(), null, null

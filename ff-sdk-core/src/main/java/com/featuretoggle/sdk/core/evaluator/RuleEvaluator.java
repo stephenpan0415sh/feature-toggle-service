@@ -1,5 +1,6 @@
 package com.featuretoggle.sdk.core.evaluator;
 
+import com.featuretoggle.common.exception.RuleEvaluationException;
 import com.featuretoggle.common.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,17 +23,21 @@ public class RuleEvaluator {
      * Evaluate a feature flag for a given user context.
      * 
      * @param flag The feature flag to evaluate
-     * @param userContext The user context containing attributes
+     * @param userContext The user context containing attributes (can be null)
      * @return EvaluationDetail with full explainability
      */
     public EvaluationDetail evaluate(FeatureFlag flag, UserContext userContext) {
+        // Handle null userContext by creating empty one
+        if (userContext == null) {
+            userContext = new UserContext("", Map.of());
+        }
+        
         try {
             // Check if flag is disabled
             if (!flag.isEnabled()) {
                 return buildEvaluationDetail(flag, userContext, 
                     EvaluationDetail.EvaluationReason.DEFAULT, 
-                    null, 
-                    flag.getDefaultValue(),
+                    BuiltInRuleId.FLAG_DISABLED.getId(),  // Flag is disabled
                     Boolean.parseBoolean(flag.getDefaultValue()));
             }
 
@@ -41,54 +46,43 @@ public class RuleEvaluator {
             if (rules == null || rules.isEmpty()) {
                 return buildEvaluationDetail(flag, userContext,
                     EvaluationDetail.EvaluationReason.DEFAULT,
-                    null,
-                    flag.getDefaultValue(),
+                    BuiltInRuleId.NO_RULES_CONFIGURED.getId(),  // No rules configured
                     Boolean.parseBoolean(flag.getDefaultValue()));
             }
 
-            // Sort rules by priority (lower number = higher priority)
-            List<Rule> sortedRules = rules.stream()
-                .sorted(Comparator.comparingInt(Rule::getPriority))
-                .collect(Collectors.toList());
-
+            // Rules are already sorted by priority from database (orderBy priority ASC)
             // Evaluate rules in priority order
-            for (Rule rule : sortedRules) {
-                EvaluationResult result = evaluateRule(rule, userContext);
+            for (Rule rule : rules) {
+                EvaluationResult result = evaluateRule(rule, userContext, flag.getFlagKey());
                 
                 if (result.matched()) {
-                    boolean enabled = determineEnabledState(rule, result.value());
+                    boolean enabled = result.enabled();
+                    
+                    // Blacklist is special: if matched, immediately return false
+                    if (result.reason() == EvaluationDetail.EvaluationReason.BLACKLIST) {
+                        log.debug("User {} blacklisted by rule {}, returning false", 
+                            userContext.userId(), rule.getId());
+                        enabled = false;
+                    }
+                    
                     return buildEvaluationDetail(flag, userContext,
                         result.reason(),
-                        rule.getId(),
-                        result.value(),
+                        Long.parseLong(rule.getId()),
                         enabled);
-                }
-                
-                // Blacklist is special: if matched, immediately return false
-                if (result.reason() == EvaluationDetail.EvaluationReason.BLACKLIST) {
-                    log.debug("User {} blacklisted by rule {}, returning false", 
-                        userContext.userId(), rule.getId());
-                    return buildEvaluationDetail(flag, userContext,
-                        EvaluationDetail.EvaluationReason.BLACKLIST,
-                        rule.getId(),
-                        "false",
-                        false);
                 }
             }
 
             // No rules matched, return default value
             return buildEvaluationDetail(flag, userContext,
                 EvaluationDetail.EvaluationReason.DEFAULT,
-                null,
-                flag.getDefaultValue(),
+                BuiltInRuleId.DEFAULT_FALLBACK.getId(),
                 Boolean.parseBoolean(flag.getDefaultValue()));
 
         } catch (Exception e) {
             log.error("Error evaluating flag: {}", flag.getFlagKey(), e);
             return buildEvaluationDetail(flag, userContext,
                 EvaluationDetail.EvaluationReason.ERROR,
-                null,
-                flag.getDefaultValue(),
+                BuiltInRuleId.ERROR_FALLBACK.getId(),
                 Boolean.parseBoolean(flag.getDefaultValue()));
         }
     }
@@ -98,9 +92,10 @@ public class RuleEvaluator {
      * 
      * @param rule The rule to evaluate
      * @param userContext The user context
+     * @param flagKey The feature flag key (for error context)
      * @return EvaluationResult indicating if the rule matched
      */
-    private EvaluationResult evaluateRule(Rule rule, UserContext userContext) {
+    private EvaluationResult evaluateRule(Rule rule, UserContext userContext, String flagKey) {
         try {
             // Validate rule
             rule.validate();
@@ -114,18 +109,24 @@ public class RuleEvaluator {
                 case PERCENTAGE_ROLLOUT -> evaluatePercentageRollout(rule, userContext);
             };
         } catch (Exception e) {
-            log.warn("Error evaluating rule {}: {}", rule.getId(), e.getMessage());
-            return EvaluationResult.notMatched();
+            // Wrap unexpected exceptions in business exception with full context
+            log.error("Unexpected error evaluating rule {} for flag {}", rule.getId(), flagKey, e);
+            throw new RuleEvaluationException(
+                "Rule evaluation failed: " + e.getMessage(),
+                rule.getId(),
+                flagKey,
+                e
+            );
         }
     }
 
     /**
      * Evaluate kill switch rule.
-     * Kill switch always matches and returns the action value (usually "false").
+     * Kill switch always matches and returns the action enabled value (usually false).
      */
     private EvaluationResult evaluateKillSwitch(Rule rule) {
         log.debug("Kill switch rule {} activated", rule.getId());
-        return new EvaluationResult(true, rule.getActionValue(), 
+        return new EvaluationResult(true, rule.getRuleDefaultEnabled(), 
             EvaluationDetail.EvaluationReason.KILL_SWITCH);
     }
 
@@ -152,7 +153,7 @@ public class RuleEvaluator {
 
         if (isInList) {
             log.debug("User {} matched whitelist rule {}", userId, rule.getId());
-            return new EvaluationResult(true, rule.getActionValue(),
+            return new EvaluationResult(true, rule.getRuleDefaultEnabled(),
                 EvaluationDetail.EvaluationReason.WHITELIST);
         }
 
@@ -180,10 +181,9 @@ public class RuleEvaluator {
             .anyMatch(value -> value.equals(userId));
 
         if (isInList) {
-            log.debug("User {} matched blacklist rule {}, returning default", userId, rule.getId());
-            // Blacklist means "don't apply this rule", so we return not matched
-            // but with a special marker to use default value
-            return new EvaluationResult(false, null,
+            log.debug("User {} matched blacklist rule {}, returning false", userId, rule.getId());
+            // Blacklist matched, return false
+            return new EvaluationResult(true, false,
                 EvaluationDetail.EvaluationReason.BLACKLIST);
         }
 
@@ -210,7 +210,7 @@ public class RuleEvaluator {
                 .collect(Collectors.toList());
             
             log.debug("User matched targeting rule {}: {}", rule.getId(), matchedConditions);
-            return new EvaluationResult(true, rule.getActionValue(),
+            return new EvaluationResult(true, rule.getRuleDefaultEnabled(),
                 EvaluationDetail.EvaluationReason.MATCHED_RULE,
                 matchedConditions);
         }
@@ -245,7 +245,7 @@ public class RuleEvaluator {
         if (isInPercentage) {
             log.debug("User {} in {}% rollout for rule {}", 
                 attributeValue, percentage, rule.getId());
-            return new EvaluationResult(true, rule.getActionValue(),
+            return new EvaluationResult(true, rule.getRuleDefaultEnabled(),
                 EvaluationDetail.EvaluationReason.PERCENTAGE_ROLLOUT);
         }
 
@@ -350,36 +350,20 @@ public class RuleEvaluator {
     }
 
     /**
-     * Determine if the flag is enabled based on the rule's action value.
-     */
-    private boolean determineEnabledState(Rule rule, String actionValue) {
-        if (actionValue == null) {
-            return false;
-        }
-        // For kill switch, action value "false" means disabled
-        if (rule.getType() == Rule.RuleType.KILL_SWITCH) {
-            return Boolean.parseBoolean(actionValue);
-        }
-        // For other rules, any non-null action value means enabled
-        return true;
-    }
-
-    /**
      * Build evaluation detail with full explainability.
      */
     private EvaluationDetail buildEvaluationDetail(
             FeatureFlag flag,
             UserContext userContext,
             EvaluationDetail.EvaluationReason reason,
-            String matchedRuleId,
-            String value,
+            Long matchedRuleId,
             boolean enabled) {
         
-        // Extract matched conditions for explainability
+        // Extract matched conditions for explainability (only for database rules)
         List<String> matchedConditions = null;
-        if (matchedRuleId != null && flag.getRules() != null) {
+        if (matchedRuleId != null && matchedRuleId > 100 && flag.getRules() != null) {
             Optional<Rule> matchedRule = flag.getRules().stream()
-                .filter(r -> r.getId().equals(matchedRuleId))
+                .filter(r -> r.getId().equals(String.valueOf(matchedRuleId)))
                 .findFirst();
             
             if (matchedRule.isPresent() && matchedRule.get().getConditions() != null) {
@@ -395,7 +379,6 @@ public class RuleEvaluator {
         return new EvaluationDetail(
             flag.getFlagKey(),
             enabled,
-            value,
             reason,
             matchedRuleId,
             UUID.randomUUID().toString(), // traceId
@@ -413,16 +396,23 @@ public class RuleEvaluator {
      */
     private record EvaluationResult(
         boolean matched,
-        String value,
+        boolean enabled,
         EvaluationDetail.EvaluationReason reason,
         List<String> matchedConditions
     ) {
         static EvaluationResult notMatched() {
-            return new EvaluationResult(false, null, null, null);
+            return new EvaluationResult(false, false, null, null);
         }
 
-        EvaluationResult(boolean matched, String value, EvaluationDetail.EvaluationReason reason) {
-            this(matched, value, reason, null);
+        EvaluationResult(boolean matched, boolean enabled, EvaluationDetail.EvaluationReason reason) {
+            this(matched, enabled, reason, null);
+        }
+        
+        /**
+         * Get the enabled state (for backward compatibility)
+         */
+        public boolean enabled() {
+            return enabled;
         }
     }
 }

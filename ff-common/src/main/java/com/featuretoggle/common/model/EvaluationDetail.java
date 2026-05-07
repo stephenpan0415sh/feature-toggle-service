@@ -14,7 +14,6 @@ import java.util.Map;
  * {
  *   "flagKey": "new_checkout_flow",
  *   "enabled": true,
- *   "value": "v2",
  *   "reason": "MATCHED_RULE",
  *   "matchedRuleId": "rule_001",
  *   "traceId": "trace_abc123",
@@ -42,14 +41,9 @@ public record EvaluationDetail(
     String flagKey,
 
     /**
-     * Whether the flag is enabled
+     * Whether the flag is enabled (simple boolean output)
      */
     boolean enabled,
-
-    /**
-     * The value returned (can be string, number, boolean as string)
-     */
-    String value,
 
     /**
      * Reason for the evaluation result
@@ -57,9 +51,10 @@ public record EvaluationDetail(
     EvaluationReason reason,
 
     /**
-     * ID of the matched rule (if applicable)
+     * ID of the matched rule (if applicable).
+     * Built-in rules: 1-100, Database rules: 101+
      */
-    String matchedRuleId,
+    Long matchedRuleId,
 
     /**
      * Trace ID for debugging and correlation
@@ -112,47 +107,62 @@ public record EvaluationDetail(
         /**
          * No rules matched, returned default value
          */
-        DEFAULT,
+        DEFAULT(BuiltInRuleId.DEFAULT_FALLBACK.getId()),
 
         /**
          * Matched a targeting rule
          */
-        MATCHED_RULE,
+        MATCHED_RULE(null),
 
         /**
          * Kill switch disabled the flag
          */
-        KILL_SWITCH,
+        KILL_SWITCH(null),
 
         /**
          * User is in whitelist
          */
-        WHITELIST,
+        WHITELIST(null),
 
         /**
          * User is in blacklist
          */
-        BLACKLIST,
+        BLACKLIST(null),
 
         /**
          * User matched percentage rollout criteria
          */
-        PERCENTAGE_ROLLOUT,
+        PERCENTAGE_ROLLOUT(null),
 
         /**
          * Error occurred during evaluation, returned default value
          */
-        ERROR,
+        ERROR(BuiltInRuleId.ERROR_FALLBACK.getId()),
 
         /**
          * SDK version is incompatible, returned default value
          */
-        SDK_INCOMPATIBLE,
+        SDK_INCOMPATIBLE(BuiltInRuleId.ERROR_FALLBACK.getId()),
 
         /**
          * Flag not found
          */
-        FLAG_NOT_FOUND
+        FLAG_NOT_FOUND(BuiltInRuleId.DEFAULT_FALLBACK.getId());
+
+        private final Long ruleId;
+
+        EvaluationReason(Long ruleId) {
+            this.ruleId = ruleId;
+        }
+
+        /**
+         * Get the rule ID for this reason.
+         * Returns null if this reason corresponds to an actual database rule (matchedRuleId will be set separately).
+         * Returns built-in rule ID for default/error scenarios.
+         */
+        public Long getRuleId() {
+            return ruleId;
+        }
     }
 
     /**
@@ -168,12 +178,12 @@ public record EvaluationDetail(
      * Create a default evaluation detail (flag not found or error)
      */
     public static EvaluationDetail createDefault(String flagKey, String defaultValue, EvaluationReason reason) {
+        Long ruleId = reason != null ? reason.getRuleId() : BuiltInRuleId.DEFAULT_FALLBACK.getId();
         return new EvaluationDetail(
                 flagKey,
                 Boolean.parseBoolean(defaultValue),
-                defaultValue,
                 reason,
-                null,  // matchedRuleId
+                ruleId,  // matchedRuleId
                 null,  // traceId
                 null,  // environment
                 null,  // region
@@ -197,7 +207,7 @@ public record EvaluationDetail(
      * Generate a summary string for logging
      */
     public String toSummaryString() {
-        return String.format("Flag[%s] -> enabled=%s, value=%s, reason=%s, ruleId=%s",
-                flagKey, enabled, value, reason, matchedRuleId);
+        return String.format("Flag[%s] -> enabled=%s, reason=%s, ruleId=%s",
+                flagKey, enabled, reason, matchedRuleId);
     }
 }

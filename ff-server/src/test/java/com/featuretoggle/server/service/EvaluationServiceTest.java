@@ -88,10 +88,10 @@ class EvaluationServiceTest {
 
         // Setup test flag with rules
         Rule rule = Rule.builder()
-            .id("rule_1")
+            .id("101")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         testFlag = FeatureFlag.builder()
@@ -116,8 +116,6 @@ class EvaluationServiceTest {
         // Given
         when(flagCacheService.getFromCache("test-app", "test-flag", "prod"))
             .thenReturn(testFlag);
-        when(flagCacheService.hasFlagInCache("test-app", "test-flag", "prod"))
-            .thenReturn(true);
 
         // When
         EvaluationDetail result = evaluationService.evaluateFlag(
@@ -127,7 +125,6 @@ class EvaluationServiceTest {
         assertNotNull(result);
         assertEquals("test-flag", result.flagKey());
         verify(flagCacheService, times(1)).getFromCache("test-app", "test-flag", "prod");
-        verify(flagCacheService, times(1)).hasFlagInCache("test-app", "test-flag", "prod");
         verify(flagCacheService, never()).saveToCache(any(), any(), any());
     }
 
@@ -178,13 +175,6 @@ class EvaluationServiceTest {
         List<String> flagKeys = List.of("flag1", "flag2");
         when(flagCacheService.getFromCache(anyString(), anyString(), anyString()))
             .thenReturn(testFlag);
-        // Fallback mocks in case cache miss or implementation loads from DB
-        when(appRepository.findByAppKey("test-app"))
-            .thenReturn(Optional.of(testApp));
-        when(flagRepository.findByAppIdAndEnvironmentAndFlagKey(anyLong(), anyString(), anyString()))
-            .thenReturn(Optional.of(testFlagEntity));
-        when(ruleRepository.findByFlagIdOrderByPriorityAsc(anyLong()))
-            .thenReturn(List.of());
 
         // When
         Map<String, EvaluationDetail> results = evaluationService.batchEvaluate(

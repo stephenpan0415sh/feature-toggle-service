@@ -65,7 +65,7 @@ public class FeatureFlagAnnotationScanner {
                 .id(ruleAnnotation.id().isEmpty() ? "rule_" + UUID.randomUUID().toString().substring(0, 8) : ruleAnnotation.id())
                 .priority(ruleAnnotation.priority())
                 .type(ruleAnnotation.type())
-                .actionValue(ruleAnnotation.actionValue())
+                .ruleDefaultEnabled(ruleAnnotation.ruleDefaultEnabled())
                 .percentage(ruleAnnotation.percentage() > 0 ? ruleAnnotation.percentage() : null)
                 .hashAttribute(ruleAnnotation.hashAttribute().isEmpty() ? null : ruleAnnotation.hashAttribute())
                 .conditions(convertConditions(ruleAnnotation.conditions()))
@@ -107,7 +107,7 @@ public class FeatureFlagAnnotationScanner {
                 case IS_FALSE -> Condition.Operator.IS_FALSE;
             };
             
-            Condition condition = new Condition(annotation.attribute(), operator, List.of(annotation.values()));
+            Condition condition = new Condition(annotation.attribute(), operator, List.of((Object[]) annotation.values()));
             conditions.add(condition);
         }
         

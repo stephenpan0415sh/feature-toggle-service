@@ -310,7 +310,6 @@ public class ClientApiController {
                 .environment(currentEnvironment)
                 .flagKey(flagKey)
                 .enabled(detail.enabled())
-                .value(detail.value())
                 .reason(detail.reason() != null ? detail.reason().name() : null)
                 .matchedRuleId(detail.matchedRuleId())
                 .traceId(detail.traceId())

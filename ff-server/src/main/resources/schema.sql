@@ -35,7 +35,7 @@ CREATE TABLE flag_rule (
     flag_id bigint NOT NULL,
     priority int NOT NULL,
     conditions json NOT NULL,
-    action_value varchar(255) NOT NULL,
+    rule_default_enabled tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Default enabled state when rule matches',
     description varchar(512) DEFAULT '',
     PRIMARY KEY (id),
     KEY idx_flag_priority (flag_id, priority)

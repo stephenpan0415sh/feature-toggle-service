@@ -1,0 +1,44 @@
+spring:
+  # H2 In-Memory Database for Testing
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  
+  # Disable SQL script initialization for H2
+  sql:
+    init:
+      mode: never
+  
+  # JPA Configuration for H2
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+  
+  # Disable Redis for testing
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: 
+      database: 0
+
+# Disable Actuator for testing
+management:
+  endpoints:
+    web:
+      exposure:
+        include: none
+
+# Logging Configuration
+logging:
+  level:
+    com.featuretoggle: WARN
+    org.springframework: WARN
+    org.hibernate: WARN

@@ -30,8 +30,8 @@ public class FlagRuleEntity {
     @Column(columnDefinition = "JSON", nullable = false)
     private String conditions;
 
-    @Column(name = "action_value", nullable = false, length = 255)
-    private String actionValue;
+    @Column(name = "rule_default_enabled", nullable = false)
+    private Boolean ruleDefaultEnabled;
 
     @Column(length = 512)
     private String description;

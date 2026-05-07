@@ -90,18 +90,20 @@ public void processOrder() {
 }
 ```
 
-### 3.2. Get Flag Value
+### 3.2. Get Evaluation Details
 
 ```java
-EvaluationDetail detail = toggleClient.evaluate("promo_discount_percentage", user);
-String value = detail.value(); // e.g., "20"
+EvaluationDetail detail = toggleClient.evaluate("new_checkout", user);
+boolean enabled = detail.enabled(); // true or false
+String reason = detail.reason().name(); // e.g., "MATCHED_RULE"
+Long matchedRuleId = detail.matchedRuleId(); // Rule ID that matched
 ```
 
 ## 4. Annotation-Driven Usage
 
 The SDK supports AOP-based evaluation to keep your business logic clean.
 
-### 4.1. Enable a Method via Flag
+### 4.1. Basic Flag Check
 
 ```java
 @ToggleMethod(
@@ -115,7 +117,38 @@ public SearchResult search(String query) {
 ```
 *If the flag is disabled, the method returns the default value immediately without executing the body.*
 
-### 4.2. Shared Flags Configuration
+### 4.2. With prepareContextMethod and Fallback
+
+For complex scenarios where you need user context and fallback logic:
+
+```java
+@ToggleMethod(
+    flagKey = "new_checkout",
+    prepareContextMethod = "prepareUserContext",
+    fallbackMethod = "fallbackCheckout"
+)
+public String processCheckout(String orderId, int amount) {
+    // New checkout logic
+    return "new_flow";
+}
+
+// Prepare UserContext from method parameters
+private UserContext prepareUserContext(String orderId, int amount) {
+    Long userId = getCurrentUserId(); // Get from SecurityContext or Session
+    return new UserContext(
+        String.valueOf(userId),
+        Map.of("orderId", orderId)
+    );
+}
+
+// Fallback method when flag is disabled
+public String fallbackCheckout(String orderId, int amount) {
+    // Old checkout logic
+    return "old_flow";
+}
+```
+
+### 4.3. Shared Flags Configuration
 
 For flags used across multiple methods, define them in a configuration class:
 

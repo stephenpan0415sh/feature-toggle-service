@@ -35,6 +35,14 @@ Listens to Redis Pub/Sub messages for real-time configuration changes.
 The engine that matches rules against `UserContext`.
 - Located in `ff-sdk-core` for cross-language reusability.
 - Supports various operators (`==`, `!=`, `in`, `contains`).
+- Handles null UserContext gracefully (creates empty context internally).
+
+### 2.4. FeatureToggleAspect
+AOP aspect that intercepts `@ToggleMethod` annotated methods.
+- **UserContext Preparation**: Calls `prepareContextMethod` to build UserContext from method parameters
+- **Flag Evaluation**: Evaluates flag using the prepared UserContext
+- **Fallback Execution**: Executes fallback method if flag is disabled
+- **No ThreadLocal Dependency**: AOP does not rely on ThreadLocal; UserContext is passed directly
 
 ## 3. Synchronization Mechanism
 

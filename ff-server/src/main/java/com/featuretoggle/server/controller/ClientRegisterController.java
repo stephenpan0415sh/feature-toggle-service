@@ -113,7 +113,7 @@ public class ClientRegisterController {
                         .flagId(flagEntity.getId())
                         .priority(priority++)
                         .conditions(objectMapper.writeValueAsString(ruleMap))
-                        .actionValue((String) ruleMap.getOrDefault("actionValue", "false"))
+                        .ruleDefaultEnabled(Boolean.parseBoolean((String) ruleMap.getOrDefault("ruleDefaultEnabled", "false")))
                         .description((String) ruleMap.getOrDefault("description", ""))
                         .build();
                     

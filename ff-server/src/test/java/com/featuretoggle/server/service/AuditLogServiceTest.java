@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit tests for AuditLogService
  */
 @SpringBootTest
+@ActiveProfiles("test")
 class AuditLogServiceTest {
 
     @Autowired
@@ -31,9 +33,8 @@ class AuditLogServiceTest {
             .environment("prod")
             .flagKey("test_flag")
             .enabled(true)
-            .value("true")
             .reason("MATCHED_RULE")
-            .matchedRuleId("rule_001")
+            .matchedRuleId(101L)
             .traceId("trace_abc123")
             .userId("user_123")
             .region("cn-east")
@@ -69,7 +70,6 @@ class AuditLogServiceTest {
             .environment("prod")
             .flagKey("another_flag")
             .enabled(false)
-            .value("false")
             .reason("DEFAULT")
             .traceId("trace_xyz789")
             .userId("user_456")

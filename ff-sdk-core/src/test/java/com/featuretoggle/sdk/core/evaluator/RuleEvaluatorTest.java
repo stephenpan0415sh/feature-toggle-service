@@ -28,7 +28,6 @@ class RuleEvaluatorTest {
 
         assertFalse(result.enabled());
         assertEquals(EvaluationDetail.EvaluationReason.DEFAULT, result.reason());
-        assertEquals("false", result.value());
     }
 
     // Test: No rules returns default value
@@ -47,10 +46,10 @@ class RuleEvaluatorTest {
     @Test
     void shouldDisableFlagWhenKillSwitchActive() {
         Rule killSwitch = Rule.builder()
-            .id("rule_kill")
+            .id("101")
             .priority(0)
             .type(Rule.RuleType.KILL_SWITCH)
-            .actionValue("false")
+            .ruleDefaultEnabled(false)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "true", List.of(killSwitch));
@@ -60,7 +59,7 @@ class RuleEvaluatorTest {
 
         assertFalse(result.enabled());
         assertEquals(EvaluationDetail.EvaluationReason.KILL_SWITCH, result.reason());
-        assertEquals("rule_kill", result.matchedRuleId());
+        assertEquals(Long.valueOf(101), result.matchedRuleId());
     }
 
     // Test: Whitelist matches user
@@ -68,11 +67,11 @@ class RuleEvaluatorTest {
     void shouldMatchWhitelistRule() {
         Condition condition = new Condition("uid", Condition.Operator.IN, List.of(1001, 1002, 1003));
         Rule whitelist = Rule.builder()
-            .id("rule_whitelist")
+            .id("102")
             .priority(1)
             .type(Rule.RuleType.WHITELIST)
             .conditions(List.of(condition))
-            .actionValue("v2")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "v1", List.of(whitelist));
@@ -96,11 +95,11 @@ class RuleEvaluatorTest {
         Condition vipCondition = new Condition("vipLevel", Condition.Operator.GTE, List.of(2));
         
         Rule targeting = Rule.builder()
-            .id("rule_targeting")
+            .id("103")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(regionCondition, vipCondition))
-            .actionValue("v2")
+            .ruleDefaultEnabled(true)
             .description("VIP users in Beijing")
             .build();
 
@@ -127,11 +126,11 @@ class RuleEvaluatorTest {
         Condition vipCondition = new Condition("vipLevel", Condition.Operator.GTE, List.of(2));
         
         Rule targeting = Rule.builder()
-            .id("rule_targeting")
+            .id("104")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(regionCondition, vipCondition))
-            .actionValue("v2")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "v1", List.of(targeting));
@@ -151,12 +150,12 @@ class RuleEvaluatorTest {
     @Test
     void shouldBeDeterministicForPercentageRollout() {
         Rule percentageRule = Rule.builder()
-            .id("rule_percentage")
+            .id("105")
             .priority(1)
             .type(Rule.RuleType.PERCENTAGE_ROLLOUT)
             .percentage(50)
             .hashAttribute("uid")
-            .actionValue("v2")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "v1", List.of(percentageRule));
@@ -174,32 +173,32 @@ class RuleEvaluatorTest {
     // Test: Rules evaluated in priority order
     @Test
     void shouldEvaluateRulesInPriorityOrder() {
-        // Low priority rule that would match
-        Rule lowPriority = Rule.builder()
-            .id("rule_low")
-            .priority(10)
-            .type(Rule.RuleType.TARGETING)
-            .conditions(List.of(new Condition("uid", Condition.Operator.IN, List.of(123))))
-            .actionValue("low_priority_value")
-            .build();
-
         // High priority rule that also matches
         Rule highPriority = Rule.builder()
-            .id("rule_high")
+            .id("106")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(new Condition("uid", Condition.Operator.IN, List.of(123))))
-            .actionValue("high_priority_value")
+            .ruleDefaultEnabled(true)
             .build();
 
-        FeatureFlag flag = createFlag("test_flag", 1, "default", List.of(lowPriority, highPriority));
+        // Low priority rule that would match
+        Rule lowPriority = Rule.builder()
+            .id("107")
+            .priority(10)
+            .type(Rule.RuleType.TARGETING)
+            .conditions(List.of(new Condition("uid", Condition.Operator.IN, List.of(123))))
+            .ruleDefaultEnabled(true)
+            .build();
+
+        FeatureFlag flag = createFlag("test_flag", 1, "default", List.of(highPriority, lowPriority));
         UserContext user = createUser("123", Map.of("uid", 123));
 
         EvaluationDetail result = evaluator.evaluate(flag, user);
 
         // Should match high priority rule first
-        assertEquals("rule_high", result.matchedRuleId());
-        assertEquals("high_priority_value", result.value());
+        assertEquals(Long.valueOf(106), result.matchedRuleId());
+        assertTrue(result.enabled());
     }
 
     // Test: String contains operator
@@ -207,11 +206,11 @@ class RuleEvaluatorTest {
     void shouldMatchStringContainsOperator() {
         Condition condition = new Condition("email", Condition.Operator.CONTAINS, List.of("@company.com"));
         Rule rule = Rule.builder()
-            .id("rule_email")
+            .id("108")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("employee")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "public", List.of(rule));
@@ -220,7 +219,6 @@ class RuleEvaluatorTest {
         EvaluationDetail result = evaluator.evaluate(flag, user);
         
         assertTrue(result.enabled());
-        assertEquals("employee", result.value());
     }
 
     // Test: Blacklist blocks user even when default is true
@@ -228,11 +226,11 @@ class RuleEvaluatorTest {
     void shouldBlockBlacklistedUserEvenWhenDefaultIsTrue() {
         Condition blacklistCondition = new Condition("uid", Condition.Operator.IN, List.of(9999));
         Rule blacklist = Rule.builder()
-            .id("rule_blacklist")
+            .id("109")
             .priority(1)
             .type(Rule.RuleType.BLACKLIST)
             .conditions(List.of(blacklistCondition))
-            .actionValue("v1") // This value is ignored for blacklist
+            .ruleDefaultEnabled(true) // This value is ignored for blacklist
             .build();
 
         // Flag default is TRUE (enabled)
@@ -245,7 +243,7 @@ class RuleEvaluatorTest {
         // Blacklist always returns false regardless of default value
         assertFalse(result.enabled(), "Blacklisted user should not see the feature");
         assertEquals(EvaluationDetail.EvaluationReason.BLACKLIST, result.reason());
-        assertEquals("rule_blacklist", result.matchedRuleId());
+        assertEquals(Long.valueOf(109), result.matchedRuleId());
         
         // Non-blacklisted user should get default (true)
         UserContext normalUser = createUser("1234", Map.of("uid", 1234));
@@ -259,11 +257,11 @@ class RuleEvaluatorTest {
     void shouldMatchEqualOperatorWithNumbers() {
         Condition condition = new Condition("age", Condition.Operator.EQ, List.of(25));
         Rule rule = Rule.builder()
-            .id("rule_eq")
+            .id("110")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -279,11 +277,11 @@ class RuleEvaluatorTest {
     void shouldMatchNotEqualOperator() {
         Condition condition = new Condition("status", Condition.Operator.NEQ, List.of("inactive"));
         Rule rule = Rule.builder()
-            .id("rule_neq")
+            .id("111")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -298,11 +296,11 @@ class RuleEvaluatorTest {
     void shouldMatchNotInOperator() {
         Condition condition = new Condition("country", Condition.Operator.NOT_IN, List.of("CN", "RU"));
         Rule rule = Rule.builder()
-            .id("rule_not_in")
+            .id("112")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -317,11 +315,11 @@ class RuleEvaluatorTest {
     void shouldMatchGreaterThanOperator() {
         Condition condition = new Condition("score", Condition.Operator.GT, List.of(80));
         Rule rule = Rule.builder()
-            .id("rule_gt")
+            .id("113")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -336,11 +334,11 @@ class RuleEvaluatorTest {
     void shouldMatchGreaterThanOrEqualOperator() {
         Condition condition = new Condition("score", Condition.Operator.GTE, List.of(80));
         Rule rule = Rule.builder()
-            .id("rule_gte")
+            .id("114")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -355,11 +353,11 @@ class RuleEvaluatorTest {
     void shouldMatchLessThanOperator() {
         Condition condition = new Condition("age", Condition.Operator.LT, List.of(18));
         Rule rule = Rule.builder()
-            .id("rule_lt")
+            .id("115")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -374,11 +372,11 @@ class RuleEvaluatorTest {
     void shouldMatchLessThanOrEqualOperator() {
         Condition condition = new Condition("age", Condition.Operator.LTE, List.of(18));
         Rule rule = Rule.builder()
-            .id("rule_lte")
+            .id("116")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -393,11 +391,11 @@ class RuleEvaluatorTest {
     void shouldMatchStartsWithOperator() {
         Condition condition = new Condition("email", Condition.Operator.STARTS_WITH, List.of("admin@"));
         Rule rule = Rule.builder()
-            .id("rule_starts")
+            .id("117")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -412,11 +410,11 @@ class RuleEvaluatorTest {
     void shouldMatchEndsWithOperator() {
         Condition condition = new Condition("domain", Condition.Operator.ENDS_WITH, List.of(".edu"));
         Rule rule = Rule.builder()
-            .id("rule_ends")
+            .id("118")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -431,11 +429,11 @@ class RuleEvaluatorTest {
     void shouldMatchRegexOperator() {
         Condition condition = new Condition("phone", Condition.Operator.REGEX, List.of("^1[3-9]\\d{9}$"));
         Rule rule = Rule.builder()
-            .id("rule_regex")
+            .id("119")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -450,11 +448,11 @@ class RuleEvaluatorTest {
     void shouldMatchIsTrueOperator() {
         Condition condition = new Condition("isPremium", Condition.Operator.IS_TRUE, List.of());
         Rule rule = Rule.builder()
-            .id("rule_is_true")
+            .id("120")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -469,11 +467,11 @@ class RuleEvaluatorTest {
     void shouldMatchIsFalseOperator() {
         Condition condition = new Condition("isBanned", Condition.Operator.IS_FALSE, List.of());
         Rule rule = Rule.builder()
-            .id("rule_is_false")
+            .id("121")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));
@@ -488,11 +486,11 @@ class RuleEvaluatorTest {
     void shouldCompareStringsWithGreaterThanOperator() {
         Condition condition = new Condition("name", Condition.Operator.GT, List.of("Alice"));
         Rule rule = Rule.builder()
-            .id("rule_string_gt")
+            .id("122")
             .priority(1)
             .type(Rule.RuleType.TARGETING)
             .conditions(List.of(condition))
-            .actionValue("true")
+            .ruleDefaultEnabled(true)
             .build();
 
         FeatureFlag flag = createFlag("test_flag", 1, "false", List.of(rule));

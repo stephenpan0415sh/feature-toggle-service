@@ -5,6 +5,8 @@ import com.featuretoggle.sdk.java.annotation.ToggleMethod;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 /**
  * Example service demonstrating annotation-driven feature toggles.
  * Design inspired by Sentinel's @SentinelResource annotation.
@@ -13,35 +15,65 @@ import org.springframework.stereotype.Service;
  * This service only references flag keys for evaluation.
  * 
  * Usage patterns:
- * 1. With fallback method: @ToggleMethod(flagKey = "xxx", fallbackMethod = "fallbackXxx")
- * 2. Without fallback: @ToggleMethod(flagKey = "xxx") - returns default value when disabled
+ * 1. With prepareContextMethod and fallback: 
+ *    - prepareContextMethod builds UserContext from method parameters
+ *    - fallbackMethod executes when flag is disabled
+ * 2. Without fallback: returns default value when disabled
  */
 @Slf4j
 @Service
 public class CheckoutService {
     
     /**
-     * Method with fallback - similar to Sentinel's blockHandler.
+     * Method with prepareContextMethod and fallback.
      * When flag is disabled, fallbackCheckout() will be executed.
      * 
      * Flag configuration (in admin console):
      * - flagKey: new_checkout
-     * - rules: TARGETING uid IN [123, 456] -> actionValue: true
+     * - rules: TARGETING uid IN [100, 200] -> ruleDefaultEnabled: true
      * - defaultValue: false
      */
-    @ToggleMethod(flagKey = "new_checkout", fallbackMethod = "fallbackCheckout")
-    public String processCheckout(UserContext userContext) {
-        log.info("Processing with NEW checkout flow for user: {}", userContext.userId());
+    @ToggleMethod(
+        flagKey = "new_checkout", 
+        prepareContextMethod = "prepareUserContext",
+        fallbackMethod = "fallbackCheckout"
+    )
+    public String processCheckout(String orderId, int amount) {
+        log.info("Processing with NEW checkout flow for order: {}", orderId);
         return "new_checkout_flow";
+    }
+    
+    /**
+     * Prepare UserContext from method parameters.
+     * Must have same parameter signature as processCheckout().
+     */
+    private UserContext prepareUserContext(String orderId, int amount) {
+        // Extract user info from business context (e.g., SecurityContext, Session)
+        Long userId = getCurrentUserId(); // hypothetical method
+        Integer vipLevel = getCurrentVipLevel(); // hypothetical method
+        
+        return new UserContext(
+            String.valueOf(userId),
+            Map.of("vipLevel", vipLevel, "orderId", orderId)
+        );
     }
     
     /**
      * Fallback method for new_checkout flag.
      * Must have same parameter signature as the original method.
      */
-    public String fallbackCheckout(UserContext userContext) {
-        log.info("Processing with DEFAULT checkout flow for user: {}", userContext.userId());
+    public String fallbackCheckout(String orderId, int amount) {
+        log.info("Processing with DEFAULT checkout flow for order: {}", orderId);
         return "default_checkout_flow";
+    }
+    
+    // Helper methods (hypothetical)
+    private Long getCurrentUserId() {
+        return 100L;
+    }
+    
+    private Integer getCurrentVipLevel() {
+        return 2;
     }
     
     /**
@@ -53,7 +85,7 @@ public class CheckoutService {
      * - defaultValue: true
      */
     @ToggleMethod(flagKey = "dark_mode", defaultValue = "true")
-    public String getTheme(UserContext userContext) {
+    public String getTheme() {
         return "dark";
     }
 }

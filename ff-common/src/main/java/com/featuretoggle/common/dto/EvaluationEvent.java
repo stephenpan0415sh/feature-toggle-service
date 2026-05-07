@@ -57,11 +57,6 @@ public class EvaluationEvent implements Serializable {
     private boolean enabled;
 
     /**
-     * Returned value
-     */
-    private String value;
-
-    /**
      * Reason for the evaluation result
      */
     private String reason;
@@ -69,7 +64,7 @@ public class EvaluationEvent implements Serializable {
     /**
      * Matched rule ID (if applicable)
      */
-    private String matchedRuleId;
+    private Long matchedRuleId;
 
     /**
      * Trace ID for correlation with other logs
